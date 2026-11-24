@@ -1,0 +1,52 @@
+@import '@fontsource/figtree/400.css';
+@import '@fontsource/figtree/500.css';
+@import '@fontsource/figtree/600.css';
+@import '@fontsource/figtree/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[x-cloak] {
+    display: none !important;
+}
+
+/* Smooth Accordion / Sidebar Drawer Transitions */
+.accordion-content {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    visibility: hidden;
+    transition: grid-template-rows 280ms cubic-bezier(0.4, 0, 0.2, 1), 
+                opacity 200ms ease, 
+                visibility 280ms step-end;
+}
+
+.accordion-content.is-open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    visibility: visible;
+    transition: grid-template-rows 280ms cubic-bezier(0.4, 0, 0.2, 1), 
+                opacity 200ms ease, 
+                visibility 0s step-start;
+}
+
+.accordion-inner {
+    overflow: hidden;
+}
+
+/* Hide scrollbar across all browsers while retaining scroll functionality */
+.no-scrollbar::-webkit-scrollbar,
+aside::-webkit-scrollbar,
+aside *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.no-scrollbar,
+aside,
+aside * {
+    -ms-overflow-style: none !important; /* IE and Edge */
+    scrollbar-width: none !important; /* Firefox */
+}
