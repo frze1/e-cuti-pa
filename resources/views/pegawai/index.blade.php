@@ -299,11 +299,6 @@
                                         <span class="w-1.5 h-1.5 rounded-none {{ $p->status_pegawai === 'Aktif' ? 'bg-dinas-green' : ($p->status_pegawai === 'Pensiun' ? 'bg-blue-500' : ($p->status_pegawai === 'Mutasi' ? 'bg-amber-500' : 'bg-rose-500')) }}"></span>
                                         {{ $p->status_pegawai ?? 'Aktif' }}
                                     </span>
-                                    @if($p->tanggal_keluar)
-                                        <div class="text-[10px] text-slate-400 mt-1">
-                                            Keluar: {{ $p->tanggal_keluar->format('d/m/Y') }}
-                                        </div>
-                                    @endif
                                 </td>
 
                                 <!-- NIP & Masa Kerja -->
@@ -311,13 +306,15 @@
                                     <div class="font-mono text-slate-800 dark:text-slate-200 font-semibold break-all">
                                         {{ $p->nip ?: '-' }}
                                     </div>
+                                    @if($p->jenis_kelamin)
+                                        <div class="text-[10px] text-slate-500 dark:text-slate-400">
+                                            {{ $p->jenis_kelamin }}
+                                        </div>
+                                    @endif
                                     <div class="text-slate-500 dark:text-slate-400 mt-0.5 text-[11px]">
                                         MK: {{ $p->masa_kerja ?: '-' }}
-                                        @if($p->tanggal_keluar)
-                                            <span class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">(Terkunci)</span>
-                                        @endif
                                         @if($p->tanggal_masuk)
-                                            <span class="block text-[10px] text-slate-400 dark:text-slate-500">TMT: {{ $p->tanggal_masuk->format('d/m/Y') }}</span>
+                                            <span class="block text-[10px] text-slate-400 dark:text-slate-500">TMT Pegawai: {{ $p->tanggal_masuk->format('d/m/Y') }}</span>
                                         @endif
                                     </div>
                                 </td>
@@ -504,10 +501,15 @@
                     <div class="mt-1 divide-y divide-slate-100 dark:divide-slate-700/60">
                         <!-- Baris 1: NIP (kiri) - Nilai NIP (kanan) -->
                         <div class="flex justify-between items-center py-2 text-sm">
-                            <span class="text-slate-500 dark:text-slate-400">NIP</span>
-                            <span class="text-slate-800 dark:text-slate-100 font-mono font-medium text-xs sm:text-sm">
-                                {{ $p->nip ?: '-' }}
-                            </span>
+                            <span class="text-slate-500 dark:text-slate-400">NIP / Gender</span>
+                            <div class="text-right">
+                                <span class="text-slate-800 dark:text-slate-100 font-mono font-medium text-xs sm:text-sm">
+                                    {{ $p->nip ?: '-' }}
+                                </span>
+                                @if($p->jenis_kelamin)
+                                    <span class="block text-[11px] text-slate-500 dark:text-slate-400">{{ $p->jenis_kelamin }}</span>
+                                @endif
+                            </div>
                         </div>
 
                         <!-- Baris 2: Jabatan (kiri) - Nilai Jabatan & badge Struktural (kanan) -->

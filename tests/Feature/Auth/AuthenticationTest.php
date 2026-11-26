@@ -46,13 +46,13 @@ test('users can not authenticate with unregistered email', function () {
     ]);
 });
 
-test('users can not authenticate if employee status is inactive', function () {
+test('users cannot authenticate if employee status is inactive', function (string $status) {
     $user = User::factory()->create();
     \App\Models\Pegawai::create([
         'user_id' => $user->id,
         'nip' => '198001012010011999',
         'jabatan' => 'Staff Administrasi',
-        'status_pegawai' => 'Pensiun',
+        'status_pegawai' => $status,
         'tanggal_masuk' => '2010-01-01',
         'sisa_cuti_n' => 12,
         'sisa_cuti_n1' => 0,
@@ -66,7 +66,32 @@ test('users can not authenticate if employee status is inactive', function () {
 
     $this->assertGuest();
     $response->assertSessionHasErrors([
-        'email' => 'Akun tidak aktif karena status kepegawaian saat ini: Pensiun. Silakan hubungi admin kepegawaian.',
+        'email' => 'Akun tidak aktif karena status kepegawaian saat ini: ' . $status . '. Silakan hubungi admin kepegawaian.',
+    ]);
+})->with(['Pensiun', 'Mutasi', 'Berhenti']);
+
+test('users are logged out when their employee status becomes inactive', function () {
+    $user = User::factory()->create();
+    $pegawai = \App\Models\Pegawai::create([
+        'user_id' => $user->id,
+        'nip' => '198001012010011998',
+        'jabatan' => 'Staff Administrasi',
+        'status_pegawai' => 'Aktif',
+    ]);
+
+    $this->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ])->assertRedirect(route('dashboard', absolute: false));
+
+    $pegawai->update(['status_pegawai' => 'Mutasi']);
+
+    $response = $this->get(route('profile.edit'));
+
+    $this->assertGuest();
+    $response->assertRedirect(route('login'));
+    $response->assertSessionHasErrors([
+        'email' => 'Akun tidak aktif karena status kepegawaian saat ini: Mutasi. Silakan hubungi admin kepegawaian.',
     ]);
 });
 

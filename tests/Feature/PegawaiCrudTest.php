@@ -212,32 +212,17 @@ test('admin can delete other pegawai and cascaded user', function () {
     $this->assertDatabaseMissing('pegawais', ['id' => $this->regularPegawai->id]);
 });
 
-test('masa kerja calculation is active when tanggal_keluar is null and freezes when tanggal_keluar is set', function () {
-    // 1. Pegawai Aktif: Masuk 2020-01-01, tanggal_keluar null -> masa kerja dinamis s.d. now
+test('masa kerja calculation is active based on tanggal_masuk', function () {
+    // Pegawai Aktif: Masuk 2020-01-01 -> masa kerja terhitung berdasarkan diff now
     $pegawaiAktif = Pegawai::create([
         'user_id' => $this->regularUser->id,
         'nip' => '199001012020011001',
         'jabatan' => 'Analis Perkara',
         'tanggal_masuk' => '2020-01-01',
         'status_pegawai' => 'Aktif',
-        'tanggal_keluar' => null,
     ]);
 
     expect($pegawaiAktif->masa_kerja)->toContain('Tahun');
-
-    // 2. Pegawai Keluar/Pensiun: Masuk 2015-01-01, Keluar 2020-01-01 (Tepat 5 Tahun)
-    $userPensiun = User::factory()->create(['name' => 'Pensiunan A']);
-    $pegawaiPensiun = Pegawai::create([
-        'user_id' => $userPensiun->id,
-        'nip' => '196001011985011001',
-        'jabatan' => 'Panitera',
-        'tanggal_masuk' => '2015-01-01',
-        'status_pegawai' => 'Pensiun',
-        'tanggal_keluar' => '2020-01-01',
-    ]);
-
-    // Selisih antara 2015-01-01 dan 2020-01-01 tepat 5 Tahun 0 Bulan
-    expect($pegawaiPensiun->masa_kerja)->toBe('5 Tahun');
 });
 
 test('pegawai index defaults to status_pegawai Aktif only and supports status filtering', function () {
@@ -248,7 +233,6 @@ test('pegawai index defaults to status_pegawai Aktif only and supports status fi
         'nip' => '196201011985011002',
         'jabatan' => 'Panitera Pensiun',
         'status_pegawai' => 'Pensiun',
-        'tanggal_keluar' => '2024-05-01',
     ]);
 
     $userMutasi = User::factory()->create(['name' => 'Ibu Mutasi']);
@@ -257,7 +241,6 @@ test('pegawai index defaults to status_pegawai Aktif only and supports status fi
         'nip' => '198501012010012005',
         'jabatan' => 'Kasubbag Mutasi',
         'status_pegawai' => 'Mutasi',
-        'tanggal_keluar' => '2025-01-01',
     ]);
 
     // 1. Akses default tanpa query param -> Hanya menampilkan pegawai Aktif
@@ -284,7 +267,7 @@ test('pegawai index defaults to status_pegawai Aktif only and supports status fi
     $responseSemua->assertSee('Ibu Mutasi');
 });
 
-test('admin can update pegawai status to Pensiun with tanggal_keluar', function () {
+test('admin can update pegawai status to Pensiun', function () {
     $response = $this->actingAs($this->adminUser)->put(route('pegawai.update', $this->regularPegawai->id), [
         'name' => 'Budi Santoso Pensiun',
         'email' => 'budi.santoso@pa-sumber.go.id',
@@ -293,7 +276,6 @@ test('admin can update pegawai status to Pensiun with tanggal_keluar', function 
         'jabatan' => $this->regularPegawai->jabatan,
         'tanggal_masuk' => '2010-01-01',
         'status_pegawai' => 'Pensiun',
-        'tanggal_keluar' => '2025-01-01',
         'sisa_cuti_n' => 0,
     ]);
 
@@ -301,9 +283,6 @@ test('admin can update pegawai status to Pensiun with tanggal_keluar', function 
     $this->regularPegawai->refresh();
 
     expect($this->regularPegawai->status_pegawai)->toBe('Pensiun');
-    expect($this->regularPegawai->tanggal_keluar->format('Y-m-d'))->toBe('2025-01-01');
-    // Masa kerja terkunci antara 2010-01-01 dan 2025-01-01 (15 Tahun)
-    expect($this->regularPegawai->masa_kerja)->toBe('15 Tahun');
 });
 
 test('admin can create and update pegawai with select options', function () {

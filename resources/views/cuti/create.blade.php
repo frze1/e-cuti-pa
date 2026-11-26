@@ -42,11 +42,16 @@
                     <!-- Jenis Cuti -->
                     <div>
                         <x-input-label for="jenis_cuti" :value="__('Jenis Cuti')" />
+                        @php
+                            $isLakiLaki = (Auth::user()?->jenis_kelamin === 'Laki-laki' || Auth::user()?->pegawai?->jenis_kelamin === 'Laki-laki');
+                        @endphp
                         <select id="jenis_cuti" name="jenis_cuti" x-model="jenisCuti" @change="updateSatuan()" class="block mt-1 w-full border-slate-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 rounded-none shadow-xs text-sm py-2 px-3" required>
                             <option value="Cuti Tahunan">Cuti Tahunan</option>
                             <option value="Cuti Besar">Cuti Besar</option>
                             <option value="Cuti Sakit">Cuti Sakit</option>
-                            <option value="Cuti Melahirkan">Cuti Melahirkan</option>
+                            <option value="Cuti Melahirkan" @if($isLakiLaki) disabled class="text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800" @endif>
+                                Cuti Melahirkan @if($isLakiLaki) @endif
+                            </option>
                             <option value="Cuti Karena Alasan Penting">Cuti Karena Alasan Penting</option>
                             <option value="Cuti di Luar Tanggungan Negara">Cuti di Luar Tanggungan Negara</option>
                         </select>

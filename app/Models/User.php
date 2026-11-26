@@ -75,14 +75,14 @@ class User extends Authenticatable
         return $this->pegawai?->tanggal_masuk;
     }
 
+    public function getJenisKelaminAttribute()
+    {
+        return $this->pegawai?->jenis_kelamin;
+    }
+
     public function getStatusPegawaiAttribute()
     {
         return $this->pegawai?->status_pegawai ?? 'Aktif';
-    }
-
-    public function getTanggalKeluarAttribute()
-    {
-        return $this->pegawai?->tanggal_keluar;
     }
 
     public function getSisaCutiNAttribute()

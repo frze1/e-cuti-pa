@@ -75,10 +75,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/cuti/{cuti}/edit', [PengajuanCutiController::class, 'edit'])->name('cuti.edit');
     Route::match(['put', 'patch'], '/cuti/{cuti}', [PengajuanCutiController::class, 'update'])->name('cuti.update');
     Route::patch('/cuti/{cuti}/tarik', [PengajuanCutiController::class, 'tarik'])->name('cuti.tarik');
-    // Route untuk Ekspor/Cetak PDF & Word
-    Route::get('/cuti/cetak/{id}', [PengajuanCutiController::class, 'cetakPdf'])->name('cuti.cetak');
-    Route::get('/cuti/download-pdf/{id}', [PengajuanCutiController::class, 'cetakPdf'])->name('cuti.download_pdf');
+    // Route untuk Ekspor/Cetak Word
     Route::get('/cuti/download-word/{id}', [PengajuanCutiController::class, 'downloadWord'])->name('cuti.download_word');
+    Route::get('/cuti/{id}/export-word', [PengajuanCutiController::class, 'exportWord'])->name('cuti.export-word');
 
     // Route untuk Dasbor Persetujuan & Riwayat Atasan Langsung
     Route::get('/cuti/persetujuan', [PengajuanCutiController::class, 'persetujuanAtasan'])->name('cuti.persetujuan');

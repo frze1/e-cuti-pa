@@ -15,7 +15,7 @@
         </div>
     </x-slot>
 
-    <div class="max-w-5xl mx-auto pb-6">
+    <div class="max-w-4xl mx-auto pb-6">
         <!-- Tombol Aksi Kembali (Area Konten) -->
         <div class="mb-4 flex justify-start">
             <a href="{{ route('pegawai.index', request()->query()) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs transition">
@@ -116,10 +116,26 @@
                             @enderror
                         </div>
 
-                        <!-- Tanggal Masuk / TMT -->
+                        <!-- Jenis Kelamin -->
+                        <div>
+                            <label for="jenis_kelamin" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                Jenis Kelamin
+                            </label>
+                            <select name="jenis_kelamin" id="jenis_kelamin"
+                                class="w-full px-3.5 py-2.5 text-xs rounded-none border-slate-300 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-dinas-green focus:border-dinas-green @error('jenis_kelamin') border-rose-500 @enderror">
+                                <option value="">-- Pilih Jenis Kelamin --</option>
+                                <option value="Laki-laki" {{ old('jenis_kelamin') === 'Laki-laki' ? 'selected' : '' }}>Laki-laki</option>
+                                <option value="Perempuan" {{ old('jenis_kelamin') === 'Perempuan' ? 'selected' : '' }}>Perempuan</option>
+                            </select>
+                            @error('jenis_kelamin')
+                                <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <!-- Tanggal Masuk / TMT Pegawai -->
                         <div>
                             <label for="tanggal_masuk" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                Tanggal Masuk / TMT
+                                TMT Pegawai
                             </label>
                             <input type="date" name="tanggal_masuk" id="tanggal_masuk" value="{{ old('tanggal_masuk') }}"
                                 class="w-full px-3.5 py-2.5 text-xs rounded-none border-slate-300 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-dinas-green focus:border-dinas-green @error('tanggal_masuk') border-rose-500 @enderror">
@@ -146,21 +162,6 @@
                             @error('status_pegawai')
                                 <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
                             @enderror
-                        </div>
-
-                        <!-- Tanggal Keluar (Opsional) -->
-                        <div>
-                            <label for="tanggal_keluar" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                Tanggal Keluar / SK Pemberhentian
-                            </label>
-                            <input type="date" name="tanggal_keluar" id="tanggal_keluar" value="{{ old('tanggal_keluar') }}"
-                                class="w-full px-3.5 py-2.5 text-xs rounded-none border-slate-300 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-dinas-green focus:border-dinas-green @error('tanggal_keluar') border-rose-500 @enderror">
-                            @error('tanggal_keluar')
-                                <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
-                            @enderror
-                            <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                                Diisi jika aparatur sudah pensiun/mutasi agar masa kerja berhenti terhitung (terkunci).
-                            </p>
                         </div>
 
                         <!-- Jabatan -->

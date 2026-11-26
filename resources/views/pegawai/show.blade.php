@@ -55,6 +55,14 @@
                     </span>
                 </div>
 
+                <!-- Jenis Kelamin -->
+                <div class="p-3 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/60">
+                    <span class="text-xs text-slate-500 dark:text-slate-400 block mb-0.5">Jenis Kelamin</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-100">
+                        {{ $pegawai->jenis_kelamin ?: '-' }}
+                    </span>
+                </div>
+
                 <!-- Email Akun -->
                 <div class="p-3 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/60">
                     <span class="text-xs text-slate-500 dark:text-slate-400 block mb-0.5">Alamat Email Dinas</span>
@@ -71,9 +79,9 @@
                     </span>
                 </div>
 
-                <!-- Tanggal Masuk (TMT) -->
+                <!-- TMT Pegawai -->
                 <div class="p-3 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/60">
-                    <span class="text-xs text-slate-500 dark:text-slate-400 block mb-0.5">Tanggal Masuk (TMT)</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 block mb-0.5">TMT Pegawai</span>
                     <span class="font-semibold text-slate-800 dark:text-slate-100">
                         {{ $pegawai->tanggal_masuk ? $pegawai->tanggal_masuk->isoFormat('D MMMM YYYY') : '-' }}
                     </span>

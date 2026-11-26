@@ -13,9 +13,9 @@ class Pegawai extends Model
     protected $fillable = [
         'user_id',
         'nip',
+        'jenis_kelamin',
         'jabatan_id',
         'tanggal_masuk',
-        'tanggal_keluar',
         'status_pegawai',
         'sisa_cuti_n',
         'sisa_cuti_n_1',
@@ -71,19 +71,15 @@ class Pegawai extends Model
 
     protected $casts = [
         'tanggal_masuk' => 'date',
-        'tanggal_keluar' => 'date',
     ];
 
     /**
      * Hitung durasi masa kerja secara otomatis dari tanggal_masuk.
-     * Jika tanggal_keluar terisi (sudah keluar/pensiun/mutasi), hitung selisih mutlak
-     * dari tanggal_masuk ke tanggal_keluar agar angka masa kerjanya berhenti (terkunci).
      */
     public function getMasaKerjaAttribute()
     {
         if ($this->tanggal_masuk) {
-            $targetDate = $this->tanggal_keluar ? Carbon::parse($this->tanggal_keluar) : now();
-            $diff = Carbon::parse($this->tanggal_masuk)->diff($targetDate);
+            $diff = Carbon::parse($this->tanggal_masuk)->diff(now());
             $years = $diff->y;
             $months = $diff->m;
             $parts = [];

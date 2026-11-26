@@ -70,7 +70,7 @@ class LoginRequest extends FormRequest
         }
 
         // 2. Cek apakah status kepegawaian aktif
-        if ($user->pegawai && in_array($user->pegawai->status_pegawai, ['Pensiun', 'Mutasi Keluar', 'Diberhentikan'])) {
+        if ($user->pegawai && $user->pegawai->status_pegawai !== 'Aktif') {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([

@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class PengajuanCutiController extends Controller
 {
@@ -42,6 +41,14 @@ class PengajuanCutiController extends Controller
             'alamat_selama_cuti' => 'required|string',
             'no_telp'            => 'required|string',
         ]);
+
+        // Validasi Cuti Melahirkan: Tidak dapat diajukan oleh pegawai berjenis kelamin Laki-laki
+        $user = Auth::user();
+        if ($request->jenis_cuti === 'Cuti Melahirkan' && ($user->jenis_kelamin === 'Laki-laki' || $user->pegawai?->jenis_kelamin === 'Laki-laki')) {
+            throw ValidationException::withMessages([
+                'jenis_cuti' => 'Jenis cuti melahirkan hanya diperuntukkan bagi pegawai perempuan.',
+            ]);
+        }
 
         // Validasi: Durasi hari kerja tidak boleh melebihi rentang hari kalender pengajuan (jika satuan hari)
         if ($request->satuan_cuti === 'hari') {
@@ -188,6 +195,14 @@ class PengajuanCutiController extends Controller
             'no_telp'            => 'required|string',
         ]);
 
+        // Validasi Cuti Melahirkan: Tidak dapat diajukan oleh pegawai berjenis kelamin Laki-laki
+        $user = Auth::user();
+        if ($request->jenis_cuti === 'Cuti Melahirkan' && ($user->jenis_kelamin === 'Laki-laki' || $user->pegawai?->jenis_kelamin === 'Laki-laki')) {
+            throw ValidationException::withMessages([
+                'jenis_cuti' => 'Jenis cuti melahirkan hanya diperuntukkan bagi pegawai perempuan.',
+            ]);
+        }
+
         // Validasi: Durasi hari kerja tidak boleh melebihi rentang hari kalender pengajuan (jika satuan hari)
         if ($request->satuan_cuti === 'hari') {
             $rentangHari = Carbon::parse($request->tgl_mulai)->diffInDays(Carbon::parse($request->tgl_selesai)) + 1;
@@ -222,9 +237,9 @@ class PengajuanCutiController extends Controller
                 'satuan_cuti'        => $request->satuan_cuti,
                 'alamat_selama_cuti' => $request->alamat_selama_cuti,
                 'no_telp'            => $request->no_telp,
-                'status'             => 'MENUNGGU_ATASAN', // Ubah status kembali menjadi 'Menunggu Atasan' (mereset siklus)
-                'catatan_atasan'     => null, // Kosongkan kolom catatan_atasan (set null)
-                'catatan_revisi'     => null,
+                'status'             => 'MENUNGGU_ATASAN', 
+                'catatan_atasan'     => null,
+                'catatan_ketua'      => null,
             ]);
         });
 
@@ -372,7 +387,7 @@ class PengajuanCutiController extends Controller
                 break;
         }
 
-        $cuti->catatan_revisi = $request->catatan;
+        $cuti->catatan_atasan = $request->catatan;
         $cuti->save();
 
         // Kirim WebPush notification ke pemohon dan Ketua PA
@@ -673,7 +688,7 @@ class PengajuanCutiController extends Controller
                     break;
             }
 
-            $cuti->catatan_revisi = $request->catatan;
+            $cuti->catatan_ketua = $request->catatan;
             $cuti->save();
         });
 
@@ -715,38 +730,153 @@ class PengajuanCutiController extends Controller
         return redirect()->route('cuti.daftar_ketua')->with('success', 'Keputusan final berhasil disimpan dan diteruskan ke Admin Kepegawaian untuk penomoran surat.');
     }
 
-    public function cetakPdf($id)
+    /**
+     * Helper untuk membuat TemplateProcessor dengan variabel yang telah terisi
+     */
+    protected function generateFilledTemplateProcessor(\App\Models\PengajuanCuti $cuti): \PhpOffice\PhpWord\TemplateProcessor
     {
-        // Ambil data cuti beserta relasi berantai dan snapshot pejabat penyetuju & pengesah
-        $cuti = \App\Models\PengajuanCuti::with([
-            'user.pegawai.jabatan.parent',
-            'atasan_penyetuju.pegawai',
-            'ketua_pengesah.pegawai',
-        ])->findOrFail($id);
-
-        // Proteksi 1: Pastikan dokumen sudah selesai ACC final dan bernomor surat
-        if (!in_array($cuti->status, ['SELESAI_DISETUJUI', 'DISETUJUI', 'Disetujui'])) {
-            abort(403, 'Dokumen belum selesai diproses atau belum diterbitkan nomor surat resminya.');
+        $templatePath = storage_path('app/templates/format_surat_izin_cuti.docx');
+        if (!file_exists($templatePath)) {
+            $altTemplatePath = storage_path('app/templates/format surat izin cuti.docx');
+            if (file_exists($altTemplatePath)) {
+                $templatePath = $altTemplatePath;
+            } else {
+                abort(404, 'File template formulir cuti tidak ditemukan di storage/app/templates.');
+            }
         }
 
-        // Proteksi 2: Hanya pemohon asli atau Admin Kepegawaian yang boleh mencetak
-        if (Auth::user()->role !== 'admin' && Auth::id() !== $cuti->user_id) {
-            abort(403, 'Anda tidak berhak mengakses dokumen ini.');
-        }
+        $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor($templatePath);
 
+        // Data Pemohon
+        $pegawai = $cuti->user?->pegawai;
+        $namaPegawai = $cuti->user?->name ?? '-';
+        $nip = $pegawai?->nip ?? ($cuti->user?->nip ?? '-');
+        $jabatan = $pegawai?->jabatan?->nama_jabatan ?? ($cuti->user?->jabatan ?? '-');
+        $masaKerja = $pegawai?->masa_kerja ?? '-';
+        $alamatCuti = $cuti->alamat_selama_cuti ?? '-';
+        $noTelepon = $cuti->no_telp ?? '-';
+
+        // Tanggal & Nomor Surat
+        $tanggalSurat = Carbon::parse($cuti->created_at)->isoFormat('D MMMM YYYY');
+        $nomorSurat = $cuti->nomor_surat ?: '..........................................';
+
+        // Durasi & Periode
+        $lamaCuti = $cuti->durasi_hari;
+        $satuanCuti = ucfirst($cuti->satuan_cuti ?? 'hari');
+        $alasanCuti = $cuti->alasan ?? '-';
+        $tanggalMulai = Carbon::parse($cuti->tgl_mulai)->isoFormat('D MMMM YYYY');
+        $tanggalSelesai = Carbon::parse($cuti->tgl_selesai)->isoFormat('D MMMM YYYY');
+
+        // Kuota Sisa Cuti
+        $sisaCutiN = $pegawai?->sisa_cuti_n ?? 0;
+        $sisaCutiN1 = $pegawai?->sisa_cuti_n_1 ?? 0;
+        $sisaCutiN2 = $pegawai?->sisa_cuti_n_2 ?? 0;
+
+        // Ceklis Jenis Cuti (✓ jika cocok, '' jika tidak)
+        $jenis = trim($cuti->jenis_cuti);
+        $cTahunan = ($jenis === 'Cuti Tahunan') ? '✓' : '';
+        $cBesar = ($jenis === 'Cuti Besar') ? '✓' : '';
+        $cSakit = ($jenis === 'Cuti Sakit') ? '✓' : '';
+        $cMelahirkan = ($jenis === 'Cuti Melahirkan') ? '✓' : '';
+        $cAlasanPenting = ($jenis === 'Cuti Karena Alasan Penting') ? '✓' : '';
+        $cDiluarTanggungan = ($jenis === 'Cuti di Luar Tanggungan Negara') ? '✓' : '';
+
+        // Data Atasan Langsung
+        $atasanPegawai = $cuti->atasan_penyetuju?->pegawai ?? $pegawai?->getAtasanPegawai();
+        $namaAtasan = $atasanPegawai?->nama_lengkap ?? ($cuti->atasan_penyetuju?->name ?? '-');
+        $jabatanAtasan = $atasanPegawai?->jabatan?->nama_jabatan ?? ($cuti->atasan_penyetuju?->jabatan ?? 'Atasan Langsung');
+
+        // Status Pertimbangan Atasan (jika disetujui atasan)
+        $atasanSetuju = '✓';
+        $atasanUbah = '';
+        $atasanTangguh = '';
+        $atasanTolak = '';
+
+        // Data Ketua PA (Pejabat Berwenang)
         $ketua = \App\Models\Pegawai::whereHas('jabatan', function ($q) {
             $q->where('nama_jabatan', 'like', '%Ketua%')
               ->where('nama_jabatan', 'not like', '%Wakil%');
         })->with(['user', 'jabatan'])->first();
 
-        // Render tampilan Blade menjadi PDF
-        $pdf = Pdf::loadView('cuti.cetak-pdf', compact('cuti', 'ketua'));
-        
-        // Atur ukuran kertas ke A4 (Portrait)
-        $pdf->setPaper('A4', 'portrait');
+        $namaKetua = $cuti->ketua_pengesah?->name ?? ($ketua?->nama_lengkap ?? ($ketua?->user?->name ?? 'Ketua Pengadilan Agama'));
 
-        // Gunakan stream() untuk preview di browser, atau download() untuk langsung unduh
-        return $pdf->stream('Formulir_Cuti_' . str_replace(' ', '_', $cuti->user->name) . '.pdf');
+        $ketuaSetuju = '✓';
+        $ketuaUbah = '';
+        $ketuaTangguh = '';
+        $ketuaTolak = '';
+
+        // Pemetaan Variabel ke Template Word
+        $templateProcessor->setValue('tanggal_surat', $tanggalSurat);
+        $templateProcessor->setValue('nomor_surat', $nomorSurat);
+        $templateProcessor->setValue('nama_pegawai', $namaPegawai);
+        $templateProcessor->setValue('nip', $nip);
+        $templateProcessor->setValue('jabatan', $jabatan);
+        $templateProcessor->setValue('masa_kerja', $masaKerja);
+        $templateProcessor->setValue('alamat_cuti', $alamatCuti);
+        $templateProcessor->setValue('no_telepon', $noTelepon);
+
+        $templateProcessor->setValue('c_tahunan', $cTahunan);
+        $templateProcessor->setValue('c_besar', $cBesar);
+        $templateProcessor->setValue('c_sakit', $cSakit);
+        $templateProcessor->setValue('c_melahirkan', $cMelahirkan);
+        $templateProcessor->setValue('c_alasan_penting', $cAlasanPenting);
+        $templateProcessor->setValue('c_diluar_tanggungan', $cDiluarTanggungan);
+
+        $templateProcessor->setValue('alasan_cuti', $alasanCuti);
+        $templateProcessor->setValue('lama_cuti', $lamaCuti);
+
+        // Render satuan_cuti dengan TextRun + strikethrough (hari/bulan/tahun)
+        $satuan = strtolower($cuti->satuan_cuti ?? 'hari');
+        $textRunSatuan = new \PhpOffice\PhpWord\Element\TextRun();
+        $normalStyle = ['name' => 'Calibri', 'size' => 10];
+        $strikeStyle = ['name' => 'Calibri', 'size' => 10, 'strikethrough' => true];
+
+        if ($satuan === 'hari') {
+            $textRunSatuan->addText('hari', $normalStyle);
+            $textRunSatuan->addText('/bulan/tahun', $strikeStyle);
+        } elseif ($satuan === 'bulan') {
+            $textRunSatuan->addText('hari/', $strikeStyle);
+            $textRunSatuan->addText('bulan', $normalStyle);
+            $textRunSatuan->addText('/tahun', $strikeStyle);
+        } else { // tahun
+            $textRunSatuan->addText('hari/bulan/', $strikeStyle);
+            $textRunSatuan->addText('tahun', $normalStyle);
+        }
+
+        $templateProcessor->setComplexValue('satuan_cuti', $textRunSatuan);
+        $templateProcessor->setValue('tanggal_mulai', $tanggalMulai);
+        $templateProcessor->setValue('tanggal_selesai', $tanggalSelesai);
+
+        // Tahun dinamis (N, N-1, N-2) berdasarkan tanggal mulai cuti
+        $tahunBerjalan = !empty($cuti->tgl_mulai)
+            ? \Carbon\Carbon::parse($cuti->tgl_mulai)->year
+            : \Carbon\Carbon::now()->year;
+
+        $templateProcessor->setValue('tahun_n2', $tahunBerjalan - 2);
+        $templateProcessor->setValue('tahun_n1', $tahunBerjalan - 1);
+        $templateProcessor->setValue('tahun_n',  $tahunBerjalan);
+
+        $templateProcessor->setValue('sisa_cuti_n', $sisaCutiN);
+        $templateProcessor->setValue('sisa_cuti_n1', $sisaCutiN1);
+        $templateProcessor->setValue('sisa_cuti_n2', $sisaCutiN2);
+
+        $templateProcessor->setValue('atasan_setuju', $atasanSetuju);
+        $templateProcessor->setValue('atasan_ubah', $atasanUbah);
+        $templateProcessor->setValue('atasan_tangguh', $atasanTangguh);
+        $templateProcessor->setValue('atasan_tolak', $atasanTolak);
+        $templateProcessor->setValue('jabatan_atasan', $jabatanAtasan);
+        $templateProcessor->setValue('nama_atasan', $namaAtasan);
+
+        $templateProcessor->setValue('ketua_setuju', $ketuaSetuju);
+        $templateProcessor->setValue('ketua_ubah', $ketuaUbah);
+        $templateProcessor->setValue('ketua_tangguh', $ketuaTangguh);
+        $templateProcessor->setValue('ketua_tolak', $ketuaTolak);
+        $templateProcessor->setValue('nama_ketua', $namaKetua);
+
+        $templateProcessor->setValue('catatan_atasan', $cuti->catatan_atasan ?? '');
+        $templateProcessor->setValue('catatan_ketua', $cuti->catatan_ketua ?? '');
+
+        return $templateProcessor;
     }
 
     /**
@@ -782,6 +912,45 @@ class PengajuanCutiController extends Controller
             ->header('Content-Type', 'application/msword; charset=utf-8')
             ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
             ->header('Cache-Control', 'max-age=0, must-revalidate');
+    }
+
+    /**
+     * Mengunduh dokumen formulir cuti dalam format Microsoft Word (.docx) berbasis template resmi
+     */
+    public function exportWord($id)
+    {
+        $cuti = \App\Models\PengajuanCuti::with([
+            'user.pegawai.jabatan.parent',
+            'atasan_penyetuju.pegawai.jabatan',
+            'ketua_pengesah.pegawai.jabatan',
+        ])->findOrFail($id);
+
+        // Proteksi 1: Pastikan dokumen sudah selesai ACC final dan bernomor surat
+        if (!in_array($cuti->status, ['SELESAI_DISETUJUI', 'DISETUJUI', 'Disetujui'])) {
+            abort(403, 'Dokumen belum selesai diproses atau belum diterbitkan nomor surat resminya.');
+        }
+
+        // Proteksi 2: Hanya pemohon asli atau Admin Kepegawaian yang boleh mengunduh
+        if (Auth::user()->role !== 'admin' && Auth::id() !== $cuti->user_id) {
+            abort(403, 'Anda tidak berhak mengakses dokumen ini.');
+        }
+
+        $templateProcessor = $this->generateFilledTemplateProcessor($cuti);
+
+        // Simpan file sementara di storage/app/public/
+        if (!file_exists(storage_path('app/public'))) {
+            mkdir(storage_path('app/public'), 0755, true);
+        }
+
+        $safeName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $cuti->user?->name ?? 'Pegawai');
+        $filename = 'Surat_Cuti_' . $safeName . '_' . $cuti->id . '.docx';
+        $tempPath = storage_path('app/public/' . $filename);
+
+        $templateProcessor->saveAs($tempPath);
+
+        return response()->download($tempPath, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ])->deleteFileAfterSend(true);
     }
 
     /**

@@ -106,7 +106,7 @@ test('unauthenticated users cannot access cuti routes', function () {
     $this->get('/cuti/persetujuan')->assertRedirect('/login');
     $this->get('/cuti/penomoran')->assertRedirect('/login');
     $this->get('/cuti/keputusan-ketua')->assertRedirect('/login');
-    $this->get('/cuti/cetak/1')->assertRedirect('/login');
+    $this->get('/cuti/1/export-word')->assertRedirect('/login');
 });
 
 test('pegawai can submit cuti application with validation', function () {
@@ -305,7 +305,7 @@ test('ketua approves cuti and automatically cascades leave quota deduction', fun
     expect($this->pegawaiRiver->sisa_cuti_n_2)->toBe(2);
 });
 
-test('pdf print security and rendering', function () {
+test('legacy pdf print route is removed', function () {
     $cuti = PengajuanCuti::create([
         'user_id' => $this->userRiver->id,
         'jenis_cuti' => 'Cuti Tahunan',
@@ -315,35 +315,14 @@ test('pdf print security and rendering', function () {
         'durasi_hari' => 3,
         'alamat_selama_cuti' => 'Cirebon',
         'no_telp' => '08123456789',
-        'status' => 'MENUNGGU_ATASAN', // Belum selesai
+        'status' => 'SELESAI_DISETUJUI',
+        'nomor_surat' => 'W10-A4/055/KP5.3/11/2026',
     ]);
 
-    // 1. Belum disetujui -> 403
+    // Route /cuti/cetak/{id} sudah dihapus, harus return 404
     $this->actingAs($this->userRiver)
         ->get("/cuti/cetak/{$cuti->id}")
-        ->assertStatus(403);
-
-    // Set status SELESAI_DISETUJUI
-    $cuti->status = 'SELESAI_DISETUJUI';
-    $cuti->nomor_surat = 'W10-A4/055/KP5.3/11/2026';
-    $cuti->save();
-
-    // 2. User lain mencoba mencetak dokumen River -> 403
-    $this->actingAs($this->userOther)
-        ->get("/cuti/cetak/{$cuti->id}")
-        ->assertStatus(403);
-
-    // 3. Pemohon asli (River) mencetak -> 200 PDF stream
-    $responseRiver = $this->actingAs($this->userRiver)
-        ->get("/cuti/cetak/{$cuti->id}");
-    $responseRiver->assertOk();
-    $responseRiver->assertHeader('Content-Type', 'application/pdf');
-
-    // 4. Admin Kepegawaian mencetak -> 200 PDF stream
-    $responseAdmin = $this->actingAs($this->userAdmin)
-        ->get("/cuti/cetak/{$cuti->id}");
-    $responseAdmin->assertOk();
-    $responseAdmin->assertHeader('Content-Type', 'application/pdf');
+        ->assertNotFound();
 });
 
 test('durasi_hari cannot exceed calendar day range at submission', function () {
@@ -678,9 +657,9 @@ test('historical data integrity: pejabat penyetuju dan pengesah tersimpan immuta
     $this->pegawaiKetua->update(['jabatan' => 'Hakim Utama']);
     $this->pegawaiKetua->jabatan->update(['parent_id' => $pegawaiKetuaBaru->jabatan_id]);
 
-    // 5. Cetak PDF dokumen cuti lama
+    // 5. Unduh Word dokumen cuti lama
     $response = $this->actingAs($this->userRiver)
-        ->get("/cuti/cetak/{$cuti->id}");
+        ->get("/cuti/download-word/{$cuti->id}");
     $response->assertOk();
 
     // Verifikasi relasi transaksi snapshot tetap menunjuk ke Pejabat Lama

@@ -82,16 +82,12 @@
                                             </form>
                                         @endif
 
-                                        {{-- Tombol Cetak PDF & Unduh Word jika disetujui --}}
+                                        {{-- Tombol Unduh Word jika disetujui --}}
                                         @if(in_array($cuti->status, ['SELESAI_DISETUJUI', 'Disetujui Atasan']))
-                                            <div class="flex items-center justify-center gap-1">
-                                                <a href="{{ route('cuti.cetak', $cuti->id) }}" target="_blank" class="inline-flex items-center justify-center gap-1 border border-dinas-green text-dinas-green hover:bg-dinas-green hover:text-white font-semibold py-1 px-2.5 rounded-none text-xs shadow-xs transition" title="Cetak / Preview PDF">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                                                    <span>PDF</span>
-                                                </a>
-                                                <a href="{{ route('cuti.download_word', $cuti->id) }}" class="inline-flex items-center justify-center gap-1 border border-dinas-green text-dinas-green hover:bg-dinas-green hover:text-white font-semibold py-1 px-2.5 rounded-none text-xs shadow-xs transition" title="Unduh Dokumen Word Editable (.doc)">
+                                            <div class="flex items-center justify-center">
+                                                <a href="{{ route('cuti.export-word', $cuti->id) }}" class="inline-flex items-center justify-center gap-1 border border-dinas-green text-dinas-green hover:bg-dinas-green hover:text-white font-semibold py-1 px-2.5 rounded-none text-xs shadow-xs transition" title="Cetak Formulir Word Resmi (.docx)">
                                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                                    <span>Word</span>
+                                                    <span>Word (.docx)</span>
                                                 </a>
                                             </div>
                                         @elseif(!in_array($cuti->status, ['Revisi Atasan', 'REVISI_ATASAN', 'Menunggu Atasan', 'MENUNGGU_ATASAN']))
@@ -200,11 +196,7 @@
                             @endif
 
                             @if(in_array($cuti->status, ['SELESAI_DISETUJUI', 'Disetujui Atasan']))
-                                <a href="{{ route('cuti.cetak', $cuti->id) }}" target="_blank" class="border border-dinas-green text-dinas-green hover:bg-dinas-green/5 text-[10px] font-bold py-1 px-2.5 rounded shadow-xs inline-flex items-center gap-1 transition" title="Cetak PDF">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                                    <span>PDF</span>
-                                </a>
-                                <a href="{{ route('cuti.download_word', $cuti->id) }}" class="border border-dinas-green text-dinas-green hover:bg-dinas-green/5 text-[10px] font-bold py-1 px-2.5 rounded shadow-xs inline-flex items-center gap-1 transition" title="Unduh Word">
+                                <a href="{{ route('cuti.export-word', $cuti->id) }}" class="border border-dinas-green text-dinas-green hover:bg-dinas-green/5 text-[10px] font-bold py-1 px-2.5 rounded shadow-xs inline-flex items-center gap-1 transition" title="Cetak Word (.docx)">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                                     <span>Word</span>
                                 </a>

@@ -60,6 +60,7 @@
                         <div>
                             <x-input-label for="jenis_cuti" :value="__('Jenis Cuti')" />
                             @php
+                                $isLakiLaki = (Auth::user()?->jenis_kelamin === 'Laki-laki' || Auth::user()?->pegawai?->jenis_kelamin === 'Laki-laki');
                                 $daftarJenis = [
                                     'Cuti Tahunan',
                                     'Cuti Besar',
@@ -71,7 +72,12 @@
                             @endphp
                             <select id="jenis_cuti" name="jenis_cuti" x-model="jenisCuti" @change="updateSatuan()" class="block mt-1 w-full border-slate-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 rounded-none shadow-xs text-sm py-2 px-3" required>
                                 @foreach($daftarJenis as $jenis)
-                                    <option value="{{ $jenis }}">{{ $jenis }}</option>
+                                    @php
+                                        $isDisabled = ($jenis === 'Cuti Melahirkan' && $isLakiLaki);
+                                    @endphp
+                                    <option value="{{ $jenis }}" @if($isDisabled) disabled class="text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800" @endif>
+                                        {{ $jenis }} @if($isDisabled) (Hanya Pegawai Perempuan) @endif
+                                    </option>
                                 @endforeach
                             </select>
                             <x-input-error :messages="$errors->get('jenis_cuti')" class="mt-1" />

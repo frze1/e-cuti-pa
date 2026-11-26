@@ -15,17 +15,7 @@
         </div>
     </x-slot>
 
-    <div class="max-w-5xl mx-auto pb-6">
-        <!-- Tombol Aksi Kembali (Area Konten) -->
-        <div class="mb-4 flex justify-start">
-            <a href="{{ route('pegawai.index', request()->query()) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs transition">
-                <svg class="w-4 h-4 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                </svg>
-                <span>Kembali ke Daftar</span>
-            </a>
-        </div>
-
+    <div class="max-w-4xl mx-auto pb-6">
         <form method="POST" action="{{ route('pegawai.update', array_merge(['pegawai' => $pegawai->id], request()->query())) }}" class="space-y-4">
                 @csrf
                 @method('PUT')
@@ -37,7 +27,7 @@
 
                 <!-- Section 1: Kredensial Akun Pengguna -->
                 <div class="bg-white dark:bg-slate-800 rounded-none shadow-xs border border-slate-300 dark:border-slate-700 border-t-4 border-t-dinas-green overflow-hidden">
-                    <div class="px-4 py-3 sm:px-6 sm:py-4 bg-slate-50/60 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                    <div class="px-4 py-3 sm:px-6 sm:py-4 bg-slate-50/60 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-4">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-none bg-dinas-green/10 dark:bg-dinas-green/20 text-dinas-green dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
                                 1
@@ -47,7 +37,7 @@
                                 <p class="text-xs text-slate-500 dark:text-slate-400">Kredensial akses aplikasi Sistem Manajemen Cuti</p>
                             </div>
                         </div>
-                        <span class="text-[11px] font-mono text-slate-400 dark:text-slate-500">ID User #{{ $pegawai->user_id }}</span>
+                        <span class="hidden sm:block shrink-0 text-[11px] font-mono text-slate-400 dark:text-slate-500">ID User #{{ $pegawai->user_id }}</span>
                     </div>
 
                     <div class="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -88,7 +78,7 @@
 
                 <!-- Section 2: Data Kepegawaian & Hierarki -->
                 <div class="bg-white dark:bg-slate-800 rounded-none shadow-xs border border-slate-300 dark:border-slate-700 border-t-4 border-t-dinas-green relative z-20">
-                    <div class="px-4 py-3 sm:px-6 sm:py-4 bg-slate-50/60 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                    <div class="px-4 py-3 sm:px-6 sm:py-4 bg-slate-50/60 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-4">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-none bg-dinas-green/10 dark:bg-dinas-green/20 text-dinas-green dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
                                 2
@@ -98,7 +88,7 @@
                                 <p class="text-xs text-slate-500 dark:text-slate-400">Data profil aparatur sipil negara dan penempatan hierarki kerja</p>
                             </div>
                         </div>
-                        <span class="text-[11px] font-mono text-slate-400 dark:text-slate-500">ID Pegawai #{{ $pegawai->id }}</span>
+                        <span class="hidden sm:block shrink-0 text-[11px] font-mono text-slate-400 dark:text-slate-500">ID Pegawai #{{ $pegawai->id }}</span>
                     </div>
 
                     <div class="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -126,10 +116,26 @@
                             @enderror
                         </div>
 
-                        <!-- Tanggal Masuk / TMT -->
+                        <!-- Jenis Kelamin -->
+                        <div>
+                            <label for="jenis_kelamin" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                Jenis Kelamin
+                            </label>
+                            <select name="jenis_kelamin" id="jenis_kelamin"
+                                class="w-full px-3.5 py-2.5 text-xs rounded-none border-slate-300 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-dinas-green focus:border-dinas-green @error('jenis_kelamin') border-rose-500 @enderror">
+                                <option value="">-- Pilih Jenis Kelamin --</option>
+                                <option value="Laki-laki" {{ old('jenis_kelamin', $pegawai->jenis_kelamin) === 'Laki-laki' ? 'selected' : '' }}>Laki-laki</option>
+                                <option value="Perempuan" {{ old('jenis_kelamin', $pegawai->jenis_kelamin) === 'Perempuan' ? 'selected' : '' }}>Perempuan</option>
+                            </select>
+                            @error('jenis_kelamin')
+                                <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <!-- Tanggal Masuk / TMT Pegawai -->
                         <div>
                             <label for="tanggal_masuk" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                Tanggal Masuk / TMT
+                                TMT Pegawai
                             </label>
                             <input type="date" name="tanggal_masuk" id="tanggal_masuk" 
                                 value="{{ old('tanggal_masuk', $pegawai->tanggal_masuk ? $pegawai->tanggal_masuk->format('Y-m-d') : '') }}"
@@ -140,9 +146,6 @@
                             @if($pegawai->masa_kerja && $pegawai->masa_kerja !== '-')
                                 <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                                     Masa kerja terhitung: <span class="font-semibold text-dinas-green dark:text-emerald-400">{{ $pegawai->masa_kerja }}</span>
-                                    @if($pegawai->tanggal_keluar)
-                                        <span class="text-amber-600 dark:text-amber-400 font-semibold">(Terkunci s.d. {{ $pegawai->tanggal_keluar->isoFormat('D MMMM YYYY') }})</span>
-                                    @endif
                                 </p>
                             @endif
                         </div>
@@ -162,22 +165,6 @@
                             @error('status_pegawai')
                                 <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
                             @enderror
-                        </div>
-
-                        <!-- Tanggal Keluar -->
-                        <div>
-                            <label for="tanggal_keluar" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                Tanggal Keluar / SK Pemberhentian
-                            </label>
-                            <input type="date" name="tanggal_keluar" id="tanggal_keluar" 
-                                value="{{ old('tanggal_keluar', $pegawai->tanggal_keluar ? $pegawai->tanggal_keluar->format('Y-m-d') : '') }}"
-                                class="w-full px-3.5 py-2.5 text-xs rounded-none border-slate-300 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-dinas-green focus:border-dinas-green @error('tanggal_keluar') border-rose-500 @enderror">
-                            @error('tanggal_keluar')
-                                <p class="mt-1 text-xs text-rose-500">{{ $message }}</p>
-                            @enderror
-                            <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                                Diisi jika aparatur sudah pensiun/mutasi/berhenti agar perhitungan masa kerja otomatis terkunci (*freeze*).
-                            </p>
                         </div>
 
                         <!-- Jabatan -->

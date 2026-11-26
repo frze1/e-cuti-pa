@@ -32,16 +32,4 @@ class PengajuanCuti extends Model
     {
         return $this->belongsTo(User::class, 'disahkan_oleh_ketua_id');
     }
-
-    // Accessor & Mutator agar catatan_atasan dan catatan_revisi sinkron
-    public function getCatatanAtasanAttribute()
-    {
-        return $this->attributes['catatan_atasan'] ?? $this->attributes['catatan_revisi'] ?? null;
-    }
-
-    public function setCatatanAtasanAttribute($value)
-    {
-        $this->attributes['catatan_atasan'] = $value;
-        $this->attributes['catatan_revisi'] = $value;
-    }
 }

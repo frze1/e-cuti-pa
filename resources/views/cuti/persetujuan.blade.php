@@ -100,7 +100,7 @@
 
                         <!-- Aksi Footer: Tombol Lebar Penuh (w-full) -->
                         <a href="{{ route('cuti.tinjau', $cuti->id) }}" class="mt-2 block w-full text-center bg-dinas-green text-white text-xs font-semibold py-2.5 rounded-lg hover:bg-dinas-greenhover shadow-xs transition">
-                            Proses Pengajuan
+                            Tinjau Berkas
                         </a>
                     </div>
                 @endforeach

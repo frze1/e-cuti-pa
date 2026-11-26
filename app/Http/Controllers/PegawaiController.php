@@ -161,10 +161,10 @@ class PegawaiController extends Controller
             'password' => 'nullable|string|min:8',
             'role' => 'required|in:pegawai,admin',
             'nip' => 'nullable|string|max:25|unique:pegawais,nip',
+            'jenis_kelamin' => 'nullable|in:Laki-laki,Perempuan',
             'jabatan_id' => 'required|exists:jabatans,id',
             'tanggal_masuk' => 'nullable|date',
             'status_pegawai' => 'nullable|in:Aktif,Pensiun,Mutasi,Berhenti',
-            'tanggal_keluar' => 'nullable|date',
             'sisa_cuti_n' => 'required|integer|min:0|max:100',
             'sisa_cuti_n_1' => 'nullable|integer|min:0|max:100',
             'sisa_cuti_n_2' => 'nullable|integer|min:0|max:100',
@@ -177,7 +177,6 @@ class PegawaiController extends Controller
             'jabatan_id.required' => 'Jabatan pegawai wajib dipilih.',
             'jabatan_id.exists' => 'Pilihan jabatan tidak valid.',
             'tanggal_masuk.date' => 'Format tanggal masuk / TMT tidak valid.',
-            'tanggal_keluar.date' => 'Format tanggal keluar tidak valid.',
         ]);
 
         DB::transaction(function () use ($validated) {
@@ -191,10 +190,10 @@ class PegawaiController extends Controller
             Pegawai::create([
                 'user_id' => $user->id,
                 'nip' => $validated['nip'] ?? null,
+                'jenis_kelamin' => $validated['jenis_kelamin'] ?? null,
                 'jabatan_id' => $validated['jabatan_id'],
                 'tanggal_masuk' => $validated['tanggal_masuk'] ?? null,
                 'status_pegawai' => $validated['status_pegawai'] ?? 'Aktif',
-                'tanggal_keluar' => $validated['tanggal_keluar'] ?? null,
                 'sisa_cuti_n' => $validated['sisa_cuti_n'] ?? 12,
                 'sisa_cuti_n_1' => $validated['sisa_cuti_n_1'] ?? 0,
                 'sisa_cuti_n_2' => $validated['sisa_cuti_n_2'] ?? 0,
@@ -241,10 +240,10 @@ class PegawaiController extends Controller
             'password' => 'nullable|string|min:8',
             'role' => 'required|in:pegawai,admin',
             'nip' => 'nullable|string|max:25|unique:pegawais,nip,' . $pegawai->id,
+            'jenis_kelamin' => 'nullable|in:Laki-laki,Perempuan',
             'jabatan_id' => 'required|exists:jabatans,id',
             'tanggal_masuk' => 'nullable|date',
             'status_pegawai' => 'nullable|in:Aktif,Pensiun,Mutasi,Berhenti',
-            'tanggal_keluar' => 'nullable|date',
             'sisa_cuti_n' => 'required|integer|min:0|max:100',
             'sisa_cuti_n_1' => 'nullable|integer|min:0|max:100',
             'sisa_cuti_n_2' => 'nullable|integer|min:0|max:100',
@@ -257,7 +256,6 @@ class PegawaiController extends Controller
             'jabatan_id.required' => 'Jabatan pegawai wajib dipilih.',
             'jabatan_id.exists' => 'Pilihan jabatan tidak valid.',
             'tanggal_masuk.date' => 'Format tanggal masuk / TMT tidak valid.',
-            'tanggal_keluar.date' => 'Format tanggal keluar tidak valid.',
         ]);
 
         DB::transaction(function () use ($validated, $pegawai) {
@@ -275,10 +273,10 @@ class PegawaiController extends Controller
 
             $pegawai->update([
                 'nip' => $validated['nip'] ?? null,
+                'jenis_kelamin' => $validated['jenis_kelamin'] ?? null,
                 'jabatan_id' => $validated['jabatan_id'],
                 'tanggal_masuk' => $validated['tanggal_masuk'] ?? null,
                 'status_pegawai' => $validated['status_pegawai'] ?? $pegawai->status_pegawai ?? 'Aktif',
-                'tanggal_keluar' => $validated['tanggal_keluar'] ?? null,
                 'sisa_cuti_n' => $validated['sisa_cuti_n'] ?? 12,
                 'sisa_cuti_n_1' => $validated['sisa_cuti_n_1'] ?? 0,
                 'sisa_cuti_n_2' => $validated['sisa_cuti_n_2'] ?? 0,
