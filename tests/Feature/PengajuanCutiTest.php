@@ -151,11 +151,37 @@ test('pegawai can submit cuti application with validation', function () {
     ]);
 });
 
+test('duplicate cuti submissions within ten seconds only create one application', function () {
+    $payload = [
+        'jenis_cuti' => 'Cuti Tahunan',
+        'alasan' => 'Urusan Keluarga',
+        'tgl_mulai' => '2026-11-01',
+        'tgl_selesai' => '2026-11-03',
+        'durasi_hari' => 3,
+        'satuan_cuti' => 'hari',
+        'alamat_selama_cuti' => 'Cirebon',
+        'no_telp' => '08123456789',
+    ];
+
+    $this->actingAs($this->userRiver)
+        ->post('/cuti/ajukan', $payload)
+        ->assertRedirect(route('cuti.riwayat'))
+        ->assertSessionHas('success');
+
+    $this->post('/cuti/ajukan', $payload)
+        ->assertRedirect(route('cuti.riwayat'))
+        ->assertSessionHas('success', 'Pengajuan cuti identik sudah tercatat. Tidak ada pengajuan duplikat yang dibuat.');
+
+    $this->assertSame(1, PengajuanCuti::where('user_id', $this->userRiver->id)->count());
+});
+
 test('authorization: only direct atasan can review submission', function () {
     $cuti = PengajuanCuti::create([
         'user_id' => $this->userRiver->id,
         'jenis_cuti' => 'Cuti Tahunan',
         'alasan' => 'Urusan Keluarga',
+        'alamat_selama_cuti' => 'Jl. Cempaka No. 10',
+        'no_telp' => '081234567890',
         'tgl_mulai' => '2026-11-01',
         'tgl_selesai' => '2026-11-03',
         'durasi_hari' => 3,
@@ -171,7 +197,12 @@ test('authorization: only direct atasan can review submission', function () {
     $this->actingAs($this->userAtasan)
         ->get("/cuti/persetujuan/{$cuti->id}")
         ->assertOk()
-        ->assertSee('River Al Farizie');
+        ->assertSee('River Al Farizie')
+        ->assertSee('Alasan Cuti')
+        ->assertSee('Alamat Selama Menjalankan Cuti')
+        ->assertSee('Jl. Cempaka No. 10')
+        ->assertSee('Nomor Telepon / WhatsApp')
+        ->assertSee('081234567890');
 });
 
 test('atasan can approve or reject cuti application', function () {
@@ -195,7 +226,7 @@ test('atasan can approve or reject cuti application', function () {
     $response->assertRedirect('/cuti/persetujuan');
     $cuti->refresh();
     expect($cuti->status)->toBe('MENUNGGU_KETUA');
-    expect($cuti->catatan_revisi)->toBe('Disetujui silakan lanjut');
+    expect($cuti->catatan_atasan)->toBe('Disetujui silakan lanjut');
     expect($cuti->disetujui_oleh_atasan_id)->toBe($this->userAtasan->id);
     expect($cuti->atasan_penyetuju->id)->toBe($this->userAtasan->id);
 });
@@ -243,6 +274,8 @@ test('authorization: only Ketua PA can access keputusan ketua', function () {
         'user_id' => $this->userRiver->id,
         'jenis_cuti' => 'Cuti Tahunan',
         'alasan' => 'Urusan Keluarga',
+        'alamat_selama_cuti' => 'Jl. Cempaka No. 10',
+        'no_telp' => '081234567890',
         'tgl_mulai' => '2026-11-01',
         'tgl_selesai' => '2026-11-03',
         'durasi_hari' => 3,
@@ -268,7 +301,12 @@ test('authorization: only Ketua PA can access keputusan ketua', function () {
     $this->actingAs($this->userKetua)
         ->get("/cuti/keputusan-ketua/{$cuti->id}")
         ->assertOk()
-        ->assertSee('Ringkasan Pengajuan');
+        ->assertSee('Detail Pengajuan Cuti')
+        ->assertSee('Alasan Cuti')
+        ->assertSee('Alamat Selama Menjalankan Cuti')
+        ->assertSee('Jl. Cempaka No. 10')
+        ->assertSee('Nomor Telepon / WhatsApp')
+        ->assertSee('081234567890');
 });
 
 test('ketua approves cuti and automatically cascades leave quota deduction', function () {
@@ -278,7 +316,7 @@ test('ketua approves cuti and automatically cascades leave quota deduction', fun
         'alasan' => 'Urusan Keluarga',
         'tgl_mulai' => '2026-11-01',
         'tgl_selesai' => '2026-11-05',
-        'durasi_hari' => 14, // Lebih besar dari sisa_cuti_n (12), harus ambil dari N-1 (4)
+        'durasi_hari' => 14,
         'status' => 'MENUNGGU_KETUA',
     ]);
 
@@ -299,10 +337,10 @@ test('ketua approves cuti and automatically cascades leave quota deduction', fun
     expect($cuti->ketua_pengesah->id)->toBe($this->userKetua->id);
 
     $this->pegawaiRiver->refresh();
-    // 14 hari: N habis (12 -> 0), sisa 2 hari diambil dari N-1 (4 -> 2), N-2 tetap 2
-    expect($this->pegawaiRiver->sisa_cuti_n)->toBe(0);
-    expect($this->pegawaiRiver->sisa_cuti_n_1)->toBe(2);
-    expect($this->pegawaiRiver->sisa_cuti_n_2)->toBe(2);
+    // 14 hari diambil dari N-2 (2), N-1 (4), lalu N (8).
+    expect($this->pegawaiRiver->sisa_cuti_n)->toBe(4);
+    expect($this->pegawaiRiver->sisa_cuti_n_1)->toBe(0);
+    expect($this->pegawaiRiver->sisa_cuti_n_2)->toBe(0);
 });
 
 test('legacy pdf print route is removed', function () {
@@ -356,6 +394,58 @@ test('cuti tahunan submission fails if durasi_hari exceeds total available quota
         ->assertSessionHasErrors(['durasi_hari']);
 });
 
+test('annual leave submission cannot exceed effective quota reserved by pending requests', function () {
+    PengajuanCuti::create([
+        'user_id' => $this->userRiver->id,
+        'jenis_cuti' => 'Cuti Tahunan',
+        'alasan' => 'Pengajuan pertama',
+        'tgl_mulai' => '2026-11-01',
+        'tgl_selesai' => '2026-11-30',
+        'durasi_hari' => 18,
+        'status' => 'MENUNGGU_KETUA',
+    ]);
+
+    $this->actingAs($this->userRiver)
+        ->post('/cuti/ajukan', [
+            'jenis_cuti' => 'Cuti Tahunan',
+            'alasan' => 'Pengajuan kedua',
+            'tgl_mulai' => '2026-12-01',
+            'tgl_selesai' => '2026-12-01',
+            'durasi_hari' => 1,
+            'alamat_selama_cuti' => 'Cirebon',
+            'no_telp' => '08123456789',
+        ])
+        ->assertSessionHasErrors([
+            'durasi_hari' => 'Durasi cuti tahunan (1 hari) melebihi sisa kuota efektif (0 hari) setelah memperhitungkan pengajuan yang masih menunggu persetujuan.',
+        ]);
+});
+
+test('annual leave revision excludes its own pending duration from effective quota', function () {
+    $cuti = PengajuanCuti::create([
+        'user_id' => $this->userRiver->id,
+        'jenis_cuti' => 'Cuti Tahunan',
+        'alasan' => 'Perlu diperbaiki',
+        'tgl_mulai' => '2026-11-01',
+        'tgl_selesai' => '2026-11-30',
+        'durasi_hari' => 18,
+        'status' => 'REVISI_ATASAN',
+    ]);
+
+    $this->actingAs($this->userRiver)
+        ->put("/cuti/{$cuti->id}", [
+            'jenis_cuti' => 'Cuti Tahunan',
+            'alasan' => 'Pengajuan diperbaiki',
+            'tgl_mulai' => '2026-11-01',
+            'tgl_selesai' => '2026-11-30',
+            'durasi_hari' => 18,
+            'alamat_selama_cuti' => 'Cirebon',
+            'no_telp' => '08123456789',
+        ])
+        ->assertRedirect(route('cuti.riwayat'));
+
+    expect($cuti->fresh()->status)->toBe('MENUNGGU_ATASAN');
+});
+
 test('ketua approves cuti when quota is exactly depleted (0, 0, 0)', function () {
     // Total kuota River: 12 + 4 + 2 = 18 hari. Durasi tepat 18 hari
     $cuti = PengajuanCuti::create([
@@ -380,6 +470,36 @@ test('ketua approves cuti when quota is exactly depleted (0, 0, 0)', function ()
     expect($this->pegawaiRiver->sisa_cuti_n)->toBe(0);
     expect($this->pegawaiRiver->sisa_cuti_n_1)->toBe(0);
     expect($this->pegawaiRiver->sisa_cuti_n_2)->toBe(0);
+});
+
+test('ketua approval deducts annual leave from oldest balance first', function () {
+    $this->pegawaiRiver->update([
+        'sisa_cuti_n' => 10,
+        'sisa_cuti_n_1' => 4,
+        'sisa_cuti_n_2' => 2,
+    ]);
+
+    $cuti = PengajuanCuti::create([
+        'user_id' => $this->userRiver->id,
+        'jenis_cuti' => 'Cuti Tahunan',
+        'alasan' => 'Pengujian pemotongan saldo',
+        'tgl_mulai' => '2026-11-01',
+        'tgl_selesai' => '2026-11-05',
+        'durasi_hari' => 5,
+        'status' => 'MENUNGGU_KETUA',
+    ]);
+
+    $this->actingAs($this->userKetua)
+        ->post("/cuti/keputusan-ketua/{$cuti->id}", [
+            'keputusan' => 'DISETUJUI',
+            'catatan' => 'Disetujui',
+        ])
+        ->assertRedirect(route('cuti.daftar_ketua'));
+
+    $this->pegawaiRiver->refresh();
+    expect($this->pegawaiRiver->sisa_cuti_n_2)->toBe(0);
+    expect($this->pegawaiRiver->sisa_cuti_n_1)->toBe(1);
+    expect($this->pegawaiRiver->sisa_cuti_n)->toBe(10);
 });
 
 test('ketua approval fails with 422 if quota is insufficient at approval time and balances never become negative', function () {
@@ -469,7 +589,9 @@ test('idempotency: repeated approval call is blocked and does NOT deduct quota t
         ->assertRedirect(route('cuti.daftar_ketua'));
 
     $this->pegawaiRiver->refresh();
-    expect($this->pegawaiRiver->sisa_cuti_n)->toBe(9); // 12 - 3 = 9
+    expect($this->pegawaiRiver->sisa_cuti_n)->toBe(12);
+    expect($this->pegawaiRiver->sisa_cuti_n_1)->toBe(3);
+    expect($this->pegawaiRiver->sisa_cuti_n_2)->toBe(0);
 
     // Panggilan kedua (replay / double request): Harus diblokir 400
     $this->actingAs($this->userKetua)
@@ -480,8 +602,10 @@ test('idempotency: repeated approval call is blocked and does NOT deduct quota t
         ->assertStatus(400);
 
     $this->pegawaiRiver->refresh();
-    // Kuota tetap 9, TIDAK terpotong dua kali!
-    expect($this->pegawaiRiver->sisa_cuti_n)->toBe(9);
+    // Kuota tetap sama, TIDAK terpotong dua kali!
+    expect($this->pegawaiRiver->sisa_cuti_n)->toBe(12);
+    expect($this->pegawaiRiver->sisa_cuti_n_1)->toBe(3);
+    expect($this->pegawaiRiver->sisa_cuti_n_2)->toBe(0);
 });
 
 test('admin cannot input duplicate nomor_surat', function () {
@@ -658,7 +782,7 @@ test('historical data integrity: pejabat penyetuju dan pengesah tersimpan immuta
     $this->pegawaiKetua->jabatan->update(['parent_id' => $pegawaiKetuaBaru->jabatan_id]);
 
     // 5. Unduh Word dokumen cuti lama
-    $response = $this->actingAs($this->userRiver)
+    $response = $this->actingAs($this->userAdmin)
         ->get("/cuti/download-word/{$cuti->id}");
     $response->assertOk();
 
@@ -763,15 +887,22 @@ test('riwayat persetujuan atasan, riwayat ketua, and riwayat penomoran admin rou
         ->assertOk()
         ->assertSee('Riwayat Penomoran & Arsip')
         ->assertSee('W10-A4/TEST-RIWAYAT/KP5.3/11/2026')
-        ->assertSee('River Al Farizie');
+        ->assertSee('River Al Farizie')
+        ->assertSee(route('cuti.export-word', $cutiSelesai->id));
 
     // Non-admin (River) tidak dapat mengakses riwayat penomoran -> 403
     $this->actingAs($this->userRiver)
         ->get('/cuti/penomoran/riwayat')
         ->assertStatus(403);
+
+    $this->actingAs($this->userRiver)
+        ->get('/cuti/riwayat')
+        ->assertOk()
+        ->assertSee('Surat cuti resmi telah diterbitkan')
+        ->assertDontSee(route('cuti.export-word', $cutiSelesai->id));
 });
 
-test('word and pdf download authorization: admin and applicant can download, others blocked', function () {
+test('editable Word downloads are restricted to admin', function () {
     $cuti = PengajuanCuti::create([
         'user_id' => $this->userRiver->id,
         'jenis_cuti' => 'Cuti Tahunan',
@@ -782,25 +913,33 @@ test('word and pdf download authorization: admin and applicant can download, oth
         'status' => 'MENUNGGU_ATASAN', // Belum selesai
     ]);
 
-    // Belum disetujui / belum dinomori -> 403
+    // Non-admin access is forbidden regardless of document status.
     $this->actingAs($this->userRiver)
         ->get("/cuti/download-word/{$cuti->id}")
-        ->assertStatus(403);
+        ->assertForbidden();
+    $this->actingAs($this->userRiver)
+        ->get(route('cuti.export-word', $cuti->id))
+        ->assertForbidden();
+
+    // Admin masih ditolak sebelum dokumen resmi selesai diproses.
+    $this->actingAs($this->userAdmin)
+        ->get("/cuti/download-word/{$cuti->id}")
+        ->assertForbidden();
 
     $cuti->status = 'SELESAI_DISETUJUI';
     $cuti->nomor_surat = 'W10-A4/WORD/KP5.3/11/2026';
     $cuti->save();
 
-    // User lain mencoba download Word milik River -> 403
+    // User non-admin, termasuk pemohon, tidak boleh mengunduh formulir Word.
     $this->actingAs($this->userOther)
         ->get("/cuti/download-word/{$cuti->id}")
-        ->assertStatus(403);
-
-    // Pemohon asli (River) mendownload Word -> 200 ms-word
-    $respRiver = $this->actingAs($this->userRiver)
-        ->get("/cuti/download-word/{$cuti->id}");
-    $respRiver->assertOk();
-    $respRiver->assertHeader('Content-Type', 'application/msword; charset=utf-8');
+        ->assertForbidden();
+    $this->actingAs($this->userRiver)
+        ->get("/cuti/download-word/{$cuti->id}")
+        ->assertForbidden();
+    $this->actingAs($this->userRiver)
+        ->get(route('cuti.export-word', $cuti->id))
+        ->assertForbidden();
 
     // Admin Kepegawaian mendownload Word -> 200 ms-word
     $respAdmin = $this->actingAs($this->userAdmin)

@@ -95,6 +95,8 @@ beforeEach(function () {
         'sisa_cuti_n_1' => 0,
         'sisa_cuti_n_2' => 0,
     ]);
+
+    $this->pegawaiAtasan->jabatan->update(['parent_id' => $this->pegawaiKetua->jabatan_id]);
 });
 
 test('tamu tidak dapat mengakses halaman kalender cuti', function () {
@@ -102,27 +104,37 @@ test('tamu tidak dapat mengakses halaman kalender cuti', function () {
     $response->assertRedirect('/login');
 });
 
-test('non-admin (pegawai biasa, atasan, ketua) tidak dapat mengakses halaman kalender cuti', function () {
+test('pegawai biasa dan atasan langsung tidak dapat mengakses halaman kalender cuti', function () {
     // 1. Pegawai biasa
     $this->actingAs($this->userRiver)->get('/kalender-cuti')->assertStatus(403);
     
     // 2. Atasan langsung
     $this->actingAs($this->userAtasan)->get('/kalender-cuti')->assertStatus(403);
-
-    // 3. Ketua PA
-    $this->actingAs($this->userKetua)->get('/kalender-cuti')->assertStatus(403);
 });
 
 test('non-admin tidak dapat mengakses endpoint api json kalender events', function () {
     $this->actingAs($this->userRiver)->getJson('/kalender-cuti/events')->assertStatus(403);
     $this->actingAs($this->userAtasan)->getJson('/kalender-cuti/events')->assertStatus(403);
-    $this->actingAs($this->userKetua)->getJson('/kalender-cuti/events')->assertStatus(403);
+});
+
+test('ketua atau pimpinan tertinggi dapat mengakses halaman dan api kalender cuti', function () {
+    expect($this->userKetua->is_pimpinan_final)->toBeTrue();
+
+    $this->actingAs($this->userKetua)
+        ->get('/kalender-cuti')
+        ->assertOk()
+        ->assertSee('Kalender Cuti Aparatur');
+
+    $this->getJson('/kalender-cuti/events')->assertOk();
 });
 
 test('admin kepegawaian dapat mengakses halaman kalender cuti', function () {
     $response = $this->actingAs($this->userAdmin)->get('/kalender-cuti');
     $response->assertStatus(200);
     $response->assertSee('Kalender Cuti Aparatur');
+    $response->assertSee('Detail Pengajuan Cuti');
+    $response->assertSee('Alamat Selama Menjalankan Cuti');
+    $response->assertSee('Nomor Telepon / WhatsApp');
 });
 
 test('admin kepegawaian dapat mengakses api kalender events', function () {
@@ -162,19 +174,32 @@ test('admin kepegawaian dapat mengakses api kalender events', function () {
     $eventYogi = collect($data)->firstWhere('id', $cutiAcc->id);
     expect($eventYogi['extendedProps']['can_view_alasan'])->toBeTrue();
     expect($eventYogi['extendedProps']['alasan'])->toBe('Liburan keluarga ke Dieng');
+    expect($eventYogi['extendedProps']['alamat_selama_cuti'])->toBe('Dieng');
+    expect($eventYogi['extendedProps']['no_telp'])->toBe('0811223344');
 });
 
-test('menu sidebar kalender cuti hanya tampil untuk admin dan tersembunyi bagi pegawai lain', function () {
+test('menu sidebar kalender cuti tampil untuk admin dan ketua saja', function () {
     // Pegawai biasa tidak melihat menu Kalender Cuti di navigasi
     $respRiver = $this->actingAs($this->userRiver)->get('/dashboard');
     $respRiver->assertStatus(200);
     $respRiver->assertDontSee('href="' . route('cuti.kalender') . '"', false);
+
+    // Atasan langsung yang bukan pimpinan tertinggi juga tidak melihat menu
+    $respAtasan = $this->actingAs($this->userAtasan)->get('/dashboard');
+    $respAtasan->assertStatus(200);
+    $respAtasan->assertDontSee('href="' . route('cuti.kalender') . '"', false);
 
     // Admin melihat menu Kalender Cuti di navigasi
     $respAdmin = $this->actingAs($this->userAdmin)->get('/dashboard');
     $respAdmin->assertStatus(200);
     $respAdmin->assertSee('href="' . route('cuti.kalender') . '"', false);
     $respAdmin->assertSee('Kalender Cuti');
+
+    // Ketua PA juga melihat menu Kalender Cuti
+    $respKetua = $this->actingAs($this->userKetua)->get('/dashboard');
+    $respKetua->assertStatus(200);
+    $respKetua->assertSee('href="' . route('cuti.kalender') . '"', false);
+    $respKetua->assertSee('Kalender Cuti');
 });
 
 test('dashboard hanya menampilkan widget aparatur sedang cuti hari ini untuk admin', function () {

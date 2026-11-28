@@ -127,10 +127,27 @@ class CustomConfirmAndToastTest extends TestCase
             'sisa_cuti_n2' => 0,
         ]);
 
+        PengajuanCuti::create([
+            'user_id' => $user->id,
+            'jenis_cuti' => 'Cuti Tahunan',
+            'alasan' => 'Urusan keluarga',
+            'tgl_mulai' => '2026-12-01',
+            'tgl_selesai' => '2026-12-04',
+            'durasi_hari' => 4,
+            'status' => 'MENUNGGU_ATASAN',
+        ]);
+
         $response = $this->actingAs($user)->get(route('cuti.create'));
 
         $response->assertStatus(200);
         $response->assertSee('Informasi Kuota Cuti Tahunan:');
+        $response->assertSee('Kuota Pending:');
+        $response->assertSee('4 hari');
+        $response->assertSee('Sisa Kuota Efektif:');
+        $response->assertSee('8 hari');
+        $response->assertSee('x-model.number="durasiCuti"', false);
+        $response->assertSee('x-show="melebihiKuota"', false);
+        $response->assertSee('Lama cuti melebihi sisa kuota efektif');
         $response->assertSee('Simpan & Ajukan Cuti');
         
         $content = $response->getContent();

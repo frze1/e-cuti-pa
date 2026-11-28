@@ -15,11 +15,54 @@ use Carbon\Carbon;
 
 class PengajuanCutiController extends Controller
 {
+    /**
+     * @return array{totalKuota: int, kuotaPending: int, sisaKuotaEfektif: int}
+     */
+    private function hitungKuotaCutiTahunan(?Pegawai $pegawai, ?int $excludePengajuanId = null): array
+    {
+        if (!$pegawai) {
+            return [
+                'totalKuota' => 0,
+                'kuotaPending' => 0,
+                'sisaKuotaEfektif' => 0,
+            ];
+        }
+
+        $totalKuota = max(0, (int) $pegawai->sisa_cuti_n)
+            + max(0, (int) $pegawai->sisa_cuti_n_1)
+            + max(0, (int) $pegawai->sisa_cuti_n_2);
+
+        $kuotaPending = (int) PengajuanCuti::query()
+            ->where('user_id', $pegawai->user_id)
+            ->where('jenis_cuti', 'Cuti Tahunan')
+            ->where('satuan_cuti', 'hari')
+            ->whereIn('status', [
+                'MENUNGGU_ATASAN',
+                'MENUNGGU_KETUA',
+                'REVISI_ATASAN',
+                'REVISI_KETUA',
+                'DITANGGUHKAN_ATASAN',
+                'DITANGGUHKAN_KETUA',
+            ])
+            ->when($excludePengajuanId, fn ($query) => $query->whereKeyNot($excludePengajuanId))
+            ->sum('durasi_hari');
+
+        return [
+            'totalKuota' => $totalKuota,
+            'kuotaPending' => $kuotaPending,
+            'sisaKuotaEfektif' => max(0, $totalKuota - $kuotaPending),
+        ];
+    }
+
     // Menampilkan form HTML
     public function create()
     {
         $user = Auth::user();
-        return view('cuti.create', compact('user'));
+        $kuotaTahunan = $this->hitungKuotaCutiTahunan($user->pegawai);
+        $kuotaPending = $kuotaTahunan['kuotaPending'];
+        $sisaKuotaEfektif = $kuotaTahunan['sisaKuotaEfektif'];
+
+        return view('cuti.create', compact('user', 'kuotaPending', 'sisaKuotaEfektif'));
     }
 
     // Memproses data yang dikirim dari form
@@ -60,37 +103,60 @@ class PengajuanCutiController extends Controller
             }
         }
 
-        // Validasi Kuota: Khusus Cuti Tahunan dan satuan hari, durasi tidak boleh melebihi sisa kuota kumulatif (N + N-1 + N-2)
-        $user = Auth::user();
+        [$cutiBaru, $atasanPegawai, $isDirectUnderKetua, $isDuplicate] = DB::transaction(function () use ($request, $user) {
+            $pegawai = Pegawai::query()
+                ->where('user_id', $user->id)
+                ->lockForUpdate()
+                ->first();
 
-        if ($request->jenis_cuti === 'Cuti Tahunan' && $request->satuan_cuti === 'hari') {
-            $pegawai = $user->pegawai;
-            $totalKuota = $pegawai ? ($pegawai->sisa_cuti_n + $pegawai->sisa_cuti_n_1 + $pegawai->sisa_cuti_n_2) : 0;
-            if ($request->durasi_hari > $totalKuota) {
-                throw ValidationException::withMessages([
-                    'durasi_hari' => 'Durasi cuti tahunan (' . $request->durasi_hari . ' hari) melebihi total sisa cuti tahunan yang Anda miliki (' . $totalKuota . ' hari).',
-                ]);
+            $isDuplicate = PengajuanCuti::query()
+                ->where('user_id', $user->id)
+                ->where('jenis_cuti', $request->jenis_cuti)
+                ->where('tgl_mulai', $request->tgl_mulai)
+                ->where('tgl_selesai', $request->tgl_selesai)
+                ->where('durasi_hari', $request->durasi_hari)
+                ->where('created_at', '>=', now()->subSeconds(10))
+                ->exists();
+
+            if ($isDuplicate) {
+                return [null, null, false, true];
             }
+
+            // Validasi kuota dilakukan setelah kunci pegawai diperoleh agar pengajuan paralel tidak memakai saldo yang sama.
+            if ($request->jenis_cuti === 'Cuti Tahunan' && $request->satuan_cuti === 'hari') {
+                $sisaEfektif = $this->hitungKuotaCutiTahunan($pegawai)['sisaKuotaEfektif'];
+                if ($request->durasi_hari > $sisaEfektif) {
+                    throw ValidationException::withMessages([
+                        'durasi_hari' => 'Durasi cuti tahunan (' . $request->durasi_hari . ' hari) melebihi sisa kuota efektif (' . $sisaEfektif . ' hari) setelah memperhitungkan pengajuan yang masih menunggu persetujuan.',
+                    ]);
+                }
+            }
+
+            // Cek hierarki kepegawaian: apakah pemohon merupakan bawahan langsung Ketua PA (atau tanpa atasan perantara)
+            $atasanPegawai = $pegawai?->getAtasanPegawai();
+            $isDirectUnderKetua = (!$atasanPegawai || $atasanPegawai->is_pimpinan_final);
+            $initialStatus = $isDirectUnderKetua ? 'MENUNGGU_KETUA' : 'MENUNGGU_ATASAN';
+
+            $cutiBaru = PengajuanCuti::create([
+                'user_id'            => $user->id,
+                'jenis_cuti'         => $request->jenis_cuti,
+                'alasan'             => $request->alasan,
+                'tgl_mulai'          => $request->tgl_mulai,
+                'tgl_selesai'        => $request->tgl_selesai,
+                'durasi_hari'        => $request->durasi_hari,
+                'satuan_cuti'        => $request->satuan_cuti,
+                'alamat_selama_cuti' => $request->alamat_selama_cuti,
+                'no_telp'            => $request->no_telp,
+                'status'             => $initialStatus,
+            ]);
+
+            return [$cutiBaru, $atasanPegawai, $isDirectUnderKetua, false];
+        });
+
+        if ($isDuplicate) {
+            return redirect()->route('cuti.riwayat')
+                ->with('success', 'Pengajuan cuti identik sudah tercatat. Tidak ada pengajuan duplikat yang dibuat.');
         }
-
-        // Cek hierarki kepegawaian: apakah pemohon merupakan bawahan langsung Ketua PA (atau tanpa atasan perantara)
-        $atasanPegawai = $user->pegawai?->getAtasanPegawai();
-        $isDirectUnderKetua = (!$atasanPegawai || $atasanPegawai->is_pimpinan_final);
-        $initialStatus = $isDirectUnderKetua ? 'MENUNGGU_KETUA' : 'MENUNGGU_ATASAN';
-
-        // 2. Simpan data ke tabel pengajuan_cutis
-        $cutiBaru = \App\Models\PengajuanCuti::create([
-            'user_id'            => Auth::id(), // Mengikat pengajuan ke pegawai yang login
-            'jenis_cuti'         => $request->jenis_cuti,
-            'alasan'             => $request->alasan,
-            'tgl_mulai'          => $request->tgl_mulai,
-            'tgl_selesai'        => $request->tgl_selesai,
-            'durasi_hari'        => $request->durasi_hari,
-            'satuan_cuti'        => $request->satuan_cuti,
-            'alamat_selama_cuti' => $request->alamat_selama_cuti,
-            'no_telp'            => $request->no_telp,
-            'status'             => $initialStatus, 
-        ]);
 
         // Kirim WebPush notification sesuai alur (langsung ke Ketua jika bawahan langsung, atau ke Atasan Langsung)
         try {
@@ -213,15 +279,12 @@ class PengajuanCutiController extends Controller
             }
         }
 
-        // Validasi Kuota: Khusus Cuti Tahunan dan satuan hari, durasi tidak boleh melebihi sisa kuota kumulatif
-        $user = Auth::user();
-
+        // Validasi Kuota: kecualikan pengajuan revisi ini dari saldo yang masih pending.
         if ($request->jenis_cuti === 'Cuti Tahunan' && $request->satuan_cuti === 'hari') {
-            $pegawai = $user->pegawai;
-            $totalKuota = $pegawai ? ($pegawai->sisa_cuti_n + $pegawai->sisa_cuti_n_1 + $pegawai->sisa_cuti_n_2) : 0;
-            if ($request->durasi_hari > $totalKuota) {
+            $sisaEfektif = $this->hitungKuotaCutiTahunan($user->pegawai, $cuti->id)['sisaKuotaEfektif'];
+            if ($request->durasi_hari > $sisaEfektif) {
                 throw ValidationException::withMessages([
-                    'durasi_hari' => 'Durasi cuti tahunan (' . $request->durasi_hari . ' hari) melebihi total sisa cuti tahunan yang Anda miliki (' . $totalKuota . ' hari).',
+                    'durasi_hari' => 'Durasi cuti tahunan (' . $request->durasi_hari . ' hari) melebihi sisa kuota efektif (' . $sisaEfektif . ' hari) setelah memperhitungkan pengajuan lain yang masih menunggu persetujuan.',
                 ]);
             }
         }
@@ -644,25 +707,24 @@ class PengajuanCutiController extends Controller
                             abort(404, 'Data kepegawaian pemohon cuti tidak ditemukan.');
                         }
 
-                        $durasi = $cuti->durasi_hari;
-                        $totalKuota = $pegawai->sisa_cuti_n + $pegawai->sisa_cuti_n_1 + $pegawai->sisa_cuti_n_2;
+                        $durasi = (int) $cuti->durasi_hari;
+                        $saldoFields = ['sisa_cuti_n_2', 'sisa_cuti_n_1', 'sisa_cuti_n'];
+                        $totalKuota = array_sum(array_map(
+                            fn ($field) => max(0, (int) $pegawai->{$field}),
+                            $saldoFields
+                        ));
 
                         if ($durasi > $totalKuota) {
                             abort(422, 'Sisa kuota cuti pemohon (' . $totalKuota . ' hari) tidak mencukupi untuk durasi pengajuan (' . $durasi . ' hari). Kuota tidak dapat dipotong.');
                         }
 
-                        // Algoritma Pemotongan Saldo Cuti Cascading N -> N-1 -> N-2 tanpa sisa negatif
-                        if ($pegawai->sisa_cuti_n >= $durasi) {
-                            $pegawai->sisa_cuti_n -= $durasi;
-                        } elseif (($pegawai->sisa_cuti_n + $pegawai->sisa_cuti_n_1) >= $durasi) {
-                            $sisa_durasi = $durasi - $pegawai->sisa_cuti_n;
-                            $pegawai->sisa_cuti_n = 0;
-                            $pegawai->sisa_cuti_n_1 -= $sisa_durasi;
-                        } else {
-                            $sisa_durasi = $durasi - $pegawai->sisa_cuti_n - $pegawai->sisa_cuti_n_1;
-                            $pegawai->sisa_cuti_n = 0;
-                            $pegawai->sisa_cuti_n_1 = 0;
-                            $pegawai->sisa_cuti_n_2 = max(0, $pegawai->sisa_cuti_n_2 - $sisa_durasi);
+                        // Gunakan saldo terlama lebih dulu: N-2, kemudian N-1, lalu N.
+                        $sisaDurasi = $durasi;
+                        foreach ($saldoFields as $field) {
+                            $saldo = max(0, (int) $pegawai->{$field});
+                            $potongan = min($saldo, $sisaDurasi);
+                            $pegawai->{$field} = $saldo - $potongan;
+                            $sisaDurasi -= $potongan;
                         }
                         $pegawai->save();
                     }
@@ -748,7 +810,7 @@ class PengajuanCutiController extends Controller
         $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor($templatePath);
 
         // Data Pemohon
-        $pegawai = $cuti->user?->pegawai;
+        $pegawai = $cuti->user?->pegawai?->fresh();
         $namaPegawai = $cuti->user?->name ?? '-';
         $nip = $pegawai?->nip ?? ($cuti->user?->nip ?? '-');
         $jabatan = $pegawai?->jabatan?->nama_jabatan ?? ($cuti->user?->jabatan ?? '-');
@@ -884,6 +946,10 @@ class PengajuanCutiController extends Controller
      */
     public function downloadWord($id)
     {
+        if (Auth::user()->role !== 'admin') {
+            abort(403, 'Hanya Admin Kepegawaian yang berhak mengunduh dokumen formulir cuti.');
+        }
+
         $cuti = \App\Models\PengajuanCuti::with([
             'user.pegawai.jabatan.parent',
             'atasan_penyetuju.pegawai',
@@ -893,11 +959,6 @@ class PengajuanCutiController extends Controller
         // Proteksi 1: Pastikan dokumen sudah selesai ACC final dan bernomor surat
         if (!in_array($cuti->status, ['SELESAI_DISETUJUI', 'DISETUJUI', 'Disetujui'])) {
             abort(403, 'Dokumen belum selesai diproses atau belum diterbitkan nomor surat resminya.');
-        }
-
-        // Proteksi 2: Hanya pemohon asli atau Admin Kepegawaian yang boleh mengunduh
-        if (Auth::user()->role !== 'admin' && Auth::id() !== $cuti->user_id) {
-            abort(403, 'Anda tidak berhak mengakses dokumen ini.');
         }
 
         $ketua = \App\Models\Pegawai::whereHas('jabatan', function ($q) {
@@ -919,6 +980,10 @@ class PengajuanCutiController extends Controller
      */
     public function exportWord($id)
     {
+        if (Auth::user()->role !== 'admin') {
+            abort(403, 'Hanya Admin Kepegawaian yang berhak mengunduh dokumen formulir cuti.');
+        }
+
         $cuti = \App\Models\PengajuanCuti::with([
             'user.pegawai.jabatan.parent',
             'atasan_penyetuju.pegawai.jabatan',
@@ -928,11 +993,6 @@ class PengajuanCutiController extends Controller
         // Proteksi 1: Pastikan dokumen sudah selesai ACC final dan bernomor surat
         if (!in_array($cuti->status, ['SELESAI_DISETUJUI', 'DISETUJUI', 'Disetujui'])) {
             abort(403, 'Dokumen belum selesai diproses atau belum diterbitkan nomor surat resminya.');
-        }
-
-        // Proteksi 2: Hanya pemohon asli atau Admin Kepegawaian yang boleh mengunduh
-        if (Auth::user()->role !== 'admin' && Auth::id() !== $cuti->user_id) {
-            abort(403, 'Anda tidak berhak mengakses dokumen ini.');
         }
 
         $templateProcessor = $this->generateFilledTemplateProcessor($cuti);
@@ -953,15 +1013,21 @@ class PengajuanCutiController extends Controller
         ])->deleteFileAfterSend(true);
     }
 
+    private function authorizeCalendarAccess(): void
+    {
+        $user = Auth::user();
+        if ($user->role !== 'admin' && !$user->is_pimpinan_final) {
+            abort(403, 'Akses kalender cuti hanya tersedia untuk Admin Kepegawaian dan Ketua/Pimpinan Tertinggi.');
+        }
+    }
+
     /**
      * Menampilkan halaman Kalender Cuti dan data aparatur yang sedang cuti hari ini
-     * (Khusus hanya dapat diakses oleh Administrator Kepegawaian)
+     * (Dapat diakses oleh Administrator Kepegawaian dan Ketua/Pimpinan Tertinggi)
      */
     public function kalender()
     {
-        if (Auth::user()->role !== 'admin') {
-            abort(403, 'Akses ditolak. Fitur Kalender Cuti hanya dapat diakses oleh Administrator Kepegawaian.');
-        }
+        $this->authorizeCalendarAccess();
 
         $user = Auth::user();
         $today = Carbon::today()->format('Y-m-d');
@@ -981,13 +1047,11 @@ class PengajuanCutiController extends Controller
 
     /**
      * Endpoint API JSON untuk FullCalendar.js
-     * (Khusus hanya dapat diakses oleh Administrator Kepegawaian)
+     * (Dapat diakses oleh Administrator Kepegawaian dan Ketua/Pimpinan Tertinggi)
      */
     public function kalenderEvents(Request $request)
     {
-        if (Auth::user()->role !== 'admin') {
-            abort(403, 'Akses ditolak. Data kalender cuti hanya dapat diakses oleh Administrator Kepegawaian.');
-        }
+        $this->authorizeCalendarAccess();
 
         $user = Auth::user();
 
@@ -1044,6 +1108,8 @@ class PengajuanCutiController extends Controller
                     'nomor_surat' => $cuti->nomor_surat ?? '-',
                     'can_view_alasan' => true,
                     'alasan' => $cuti->alasan,
+                    'alamat_selama_cuti' => $cuti->alamat_selama_cuti,
+                    'no_telp' => $cuti->no_telp,
                 ],
             ];
         });

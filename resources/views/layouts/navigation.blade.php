@@ -110,7 +110,7 @@
                                     </svg>
                                     <span>Riwayat Pengajuan</span>
                                 </a>
-                                @if(Auth::user()->role === 'admin')
+                                @if(Auth::user()->role === 'admin' || Auth::user()->is_pimpinan_final)
                                 <a href="{{ route('cuti.kalender') }}" 
                                    class="flex items-center gap-2.5 px-3 py-2 rounded-none text-xs transition duration-150 border-l-2 {{ request()->routeIs('cuti.kalender*') ? 'bg-dinas-greenhover text-dinas-gold font-semibold border-dinas-gold shadow-xs' : 'border-emerald-700/60 text-emerald-100/80 hover:text-white hover:bg-dinas-greenhover/60 hover:border-emerald-300' }}">
                                     <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

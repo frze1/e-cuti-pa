@@ -42,7 +42,10 @@
 
                     <!-- Form Perbaikan Pengajuan -->
                     <form method="POST" action="{{ route('cuti.update', $cuti->id) }}" class="space-y-4"
+                        @submit="submitting = true"
+                        @pageshow.window="if ($event.persisted) submitting = false"
                         x-data="{
+                            submitting: false,
                             jenisCuti: '{{ old('jenis_cuti', $cuti->jenis_cuti) }}',
                             satuanCuti: '{{ old('satuan_cuti', $cuti->satuan_cuti ?? 'hari') }}',
                             updateSatuan() {
@@ -138,8 +141,15 @@
                             <a href="{{ route('cuti.riwayat') }}" class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-none border border-slate-300 dark:border-slate-600 text-xs uppercase tracking-widest transition">
                                 {{ __('Batal') }}
                             </a>
-                            <button type="submit" class="inline-flex items-center justify-center px-4 py-2 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold rounded-none border border-transparent text-xs uppercase tracking-widest shadow-xs transition">
-                                {{ __('Simpan Pembaruan & Ajukan Ulang') }}
+                            <button type="submit" :disabled="submitting" :class="submitting ? 'opacity-70 cursor-not-allowed' : ''" aria-live="polite" class="inline-flex items-center justify-center px-4 py-2 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold rounded-none border border-transparent text-xs uppercase tracking-widest shadow-xs transition">
+                                <span x-show="!submitting">{{ __('Simpan Pembaruan & Ajukan Ulang') }}</span>
+                                <span x-cloak x-show="submitting" class="inline-flex items-center gap-2">
+                                    <svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                    </svg>
+                                    {{ __('Mengirim Pengajuan...') }}
+                                </span>
                             </button>
                         </div>
                     </form>

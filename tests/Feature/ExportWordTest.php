@@ -67,8 +67,13 @@ test('export word generates docx with all variables populated from template', fu
         'disahkan_oleh_ketua_id' => $ketuaUser->id,
     ]);
 
-    // Uji akses unduh Word oleh pemohon
-    $response = $this->actingAs($pemohonUser)->get(route('cuti.export-word', $cuti->id));
+    // Pemohon tidak boleh mengunduh formulir Word yang masih dapat disunting.
+    $this->actingAs($pemohonUser)
+        ->get(route('cuti.export-word', $cuti->id))
+        ->assertForbidden();
+
+    $adminUser = User::factory()->create(['role' => 'admin']);
+    $response = $this->actingAs($adminUser)->get(route('cuti.export-word', $cuti->id));
     $response->assertStatus(200);
     $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 

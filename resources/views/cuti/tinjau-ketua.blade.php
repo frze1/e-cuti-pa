@@ -23,7 +23,7 @@
             
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-xs rounded-sm border border-slate-300 dark:border-slate-700 p-4 sm:p-6 text-gray-900 dark:text-gray-100">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 class="font-bold text-lg">Ringkasan Pengajuan</h3>
+                <h3 class="font-bold text-lg">Detail Pengajuan Cuti</h3>
                 @if($cuti->nomor_surat)
                     <span class="bg-slate-100 text-slate-800 text-xs font-semibold px-2.5 py-1 rounded-sm dark:bg-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600">
                         Nomor: {{ $cuti->nomor_surat }}
@@ -57,6 +57,14 @@
                             {{ \Carbon\Carbon::parse($cuti->tgl_mulai)->isoFormat('D MMMM YYYY') }} s/d {{ \Carbon\Carbon::parse($cuti->tgl_selesai)->isoFormat('D MMMM YYYY') }} ({{ $cuti->durasi_hari }} Hari)
                         @endif
                     </p>
+                </div>
+                <div>
+                    <p class="text-gray-500 dark:text-gray-400">Nomor Telepon / WhatsApp</p>
+                    <p class="font-semibold">{{ $cuti->no_telp ?: '-' }}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500 dark:text-gray-400">Alamat Selama Menjalankan Cuti</p>
+                    <p class="font-semibold whitespace-pre-line">{{ $cuti->alamat_selama_cuti ?: '-' }}</p>
                 </div>
                 <div>
                     <p class="text-gray-500 dark:text-gray-400">Pertimbangan Atasan Langsung</p>

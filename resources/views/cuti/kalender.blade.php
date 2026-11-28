@@ -189,8 +189,8 @@
                 <!-- Modal Header -->
                 <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-700/80 flex items-center justify-between gap-2.5 bg-slate-50/80 dark:bg-slate-900/50">
                     <div class="min-w-0">
-                        <h3 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-white truncate" x-text="activeEvent?.nama"></h3>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate" x-text="activeEvent?.jabatan"></p>
+                        <h3 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-white">Detail Pengajuan Cuti</h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate"><span x-text="activeEvent?.nama"></span> &middot; <span x-text="activeEvent?.jabatan"></span></p>
                     </div>
                     <button type="button" @click="modalOpen = false" class="p-1 rounded-none text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 transition">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -253,6 +253,17 @@
                             </div>
                         </div>
                     </template>
+
+                    <div class="grid grid-cols-1 gap-2 text-slate-700 dark:text-slate-300">
+                        <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Nomor Telepon / WhatsApp</span>
+                            <span class="text-xs font-medium mt-0.5 block break-words" x-text="activeEvent?.no_telp || '-'"></span>
+                        </div>
+                        <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Alamat Selama Menjalankan Cuti</span>
+                            <p class="text-xs leading-relaxed mt-0.5 whitespace-pre-line break-words" x-text="activeEvent?.alamat_selama_cuti || '-'"></p>
+                        </div>
+                    </div>
 
                 </div>
 

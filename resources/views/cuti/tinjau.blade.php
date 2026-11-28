@@ -39,12 +39,20 @@
                         <p class="font-semibold">{{ $cuti->jenis_cuti }}</p>
                     </div>
                     <div>
-                        <p class="text-gray-500 dark:text-gray-400">Alasan</p>
+                        <p class="text-gray-500 dark:text-gray-400">Alasan Cuti</p>
                         <p class="font-semibold">{{ $cuti->alasan }}</p>
                     </div>
                     <div>
                         <p class="text-gray-500 dark:text-gray-400">Tanggal Pelaksanaan</p>
                         <p class="font-semibold">{{ \Carbon\Carbon::parse($cuti->tgl_mulai)->isoFormat('D MMMM YYYY') }} s/d {{ \Carbon\Carbon::parse($cuti->tgl_selesai)->isoFormat('D MMMM YYYY') }} ({{ $cuti->durasi_hari }} Hari)</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400">Nomor Telepon / WhatsApp</p>
+                        <p class="font-semibold">{{ $cuti->no_telp ?: '-' }}</p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <p class="text-gray-500 dark:text-gray-400">Alamat Selama Menjalankan Cuti</p>
+                        <p class="font-semibold whitespace-pre-line">{{ $cuti->alamat_selama_cuti ?: '-' }}</p>
                     </div>
                 </div>
             </div>

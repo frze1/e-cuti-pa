@@ -104,7 +104,6 @@
                         <label for="email" class="block font-medium text-sm text-slate-700">Alamat Email</label>
                         <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="Masukkan alamat email" 
                             class="block mt-1 w-full px-4 py-2 border border-slate-300 focus:border-dinas-green focus:ring-dinas-green rounded-md shadow-xs bg-white text-sm text-slate-900 placeholder-slate-400 transition-colors @error('email') border-rose-500 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20 @enderror" />
-                        <x-input-error :messages="$errors->get('email')" class="mt-1.5 text-xs text-rose-600 font-medium" />
                     </div>
 
                     <!-- Input Password -->
@@ -112,7 +111,6 @@
                         <label for="password" class="block font-medium text-sm text-slate-700">Kata Sandi</label>
                         <input id="password" type="password" name="password" required autocomplete="current-password" placeholder="••••••••" 
                             class="block mt-1 w-full px-4 py-2 border border-slate-300 focus:border-dinas-green focus:ring-dinas-green rounded-md shadow-xs bg-white text-sm text-slate-900 placeholder-slate-400 transition-colors @error('password') border-rose-500 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20 @enderror" />
-                        <x-input-error :messages="$errors->get('password')" class="mt-1.5 text-xs text-rose-600 font-medium" />
                     </div>
 
                     <!-- Checkbox Remember Me -->

@@ -26,9 +26,22 @@
             <div class="lg:col-span-2 bg-white dark:bg-gray-800 overflow-hidden shadow-xs rounded-none border border-slate-300 dark:border-slate-700 p-4 sm:p-6 text-gray-900 dark:text-gray-100">
                 <!-- Form Pengajuan -->
                 <form method="POST" action="{{ route('cuti.store') }}" class="space-y-4"
+                    data-old-duration="{{ old('durasi_hari', '') }}"
+                    @submit="submitting = true"
+                    @pageshow.window="if ($event.persisted) submitting = false"
+                    x-init="durasiCuti = $el.dataset.oldDuration"
                     x-data="{
+                        submitting: false,
                         jenisCuti: '{{ old('jenis_cuti', 'Cuti Tahunan') }}',
                         satuanCuti: '{{ old('satuan_cuti', 'hari') }}',
+                        durasiCuti: '',
+                        sisaKuotaEfektif: {{ (int) $sisaKuotaEfektif }},
+                        get melebihiKuota() {
+                            return this.jenisCuti === 'Cuti Tahunan'
+                                && this.satuanCuti === 'hari'
+                                && this.durasiCuti !== ''
+                                && Number(this.durasiCuti) > this.sisaKuotaEfektif;
+                        },
                         updateSatuan() {
                             if (this.jenisCuti === 'Cuti Melahirkan' || this.jenisCuti === 'Cuti Besar') {
                                 this.satuanCuti = 'bulan';
@@ -80,13 +93,16 @@
                         <div>
                             <x-input-label for="durasi_hari" :value="__('Lama Cuti')" />
                             <div class="flex gap-2 mt-1">
-                                <x-text-input id="durasi_hari" class="block w-full min-w-0" type="number" name="durasi_hari" :value="old('durasi_hari')" min="1" placeholder="Lama" required />
+                                <x-text-input id="durasi_hari" class="block w-full min-w-0" type="number" name="durasi_hari" :value="old('durasi_hari')" x-model.number="durasiCuti" min="1" placeholder="Lama" required />
                                 <select id="satuan_cuti" name="satuan_cuti" x-model="satuanCuti" :disabled="jenisCuti === 'Cuti Tahunan'" class="w-28 shrink-0 border-slate-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 rounded-none shadow-xs text-sm py-2 px-2.5" required>
                                     <option value="hari">Hari</option>
                                     <option value="bulan">Bulan</option>
                                     <option value="tahun">Tahun</option>
                                 </select>
                             </div>
+                            <p x-cloak x-show="melebihiKuota" role="alert" aria-live="polite" class="mt-1 text-xs font-medium text-rose-600 dark:text-rose-400">
+                                Lama cuti melebihi sisa kuota efektif <span x-text="sisaKuotaEfektif"></span> hari.
+                            </p>
                             <template x-if="jenisCuti === 'Cuti Tahunan'">
                                 <input type="hidden" name="satuan_cuti" value="hari">
                             </template>
@@ -110,8 +126,15 @@
 
                     <!-- Tombol Aksi Simpan & Ajukan Cuti (Di Bawah Kanan Card Form) -->
                     <div class="flex items-center justify-end pt-4 border-t border-slate-100 dark:border-slate-700/60">
-                        <x-primary-button class="w-full sm:w-auto justify-center">
-                            {{ __('Simpan & Ajukan Cuti') }}
+                        <x-primary-button class="w-full sm:w-auto justify-center" ::disabled="submitting" ::class="submitting ? 'opacity-70 cursor-not-allowed' : ''" aria-live="polite">
+                            <span x-show="!submitting">{{ __('Simpan & Ajukan Cuti') }}</span>
+                            <span x-cloak x-show="submitting" class="inline-flex items-center gap-2">
+                                <svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                </svg>
+                                {{ __('Mengirim Pengajuan...') }}
+                            </span>
                         </x-primary-button>
                     </div>
                 </form>
@@ -129,6 +152,8 @@
                     <li>Tahun Berjalan (N): <strong>{{ $user->sisa_cuti_n }} hari</strong></li>
                     <li>Tahun N-1: <strong>{{ $user->sisa_cuti_n_1 }} hari</strong></li>
                     <li>Tahun N-2: <strong>{{ $user->sisa_cuti_n_2 }} hari</strong></li>
+                    <li>Kuota Pending: <strong>{{ $kuotaPending }} hari</strong></li>
+                    <li>Sisa Kuota Efektif: <strong>{{ $sisaKuotaEfektif }} hari</strong></li>
                 </ul>
             </div>
         </div>

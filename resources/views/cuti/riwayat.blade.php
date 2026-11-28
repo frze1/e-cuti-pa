@@ -84,12 +84,9 @@
 
                                         {{-- Tombol Unduh Word jika disetujui --}}
                                         @if(in_array($cuti->status, ['SELESAI_DISETUJUI', 'Disetujui Atasan']))
-                                            <div class="flex items-center justify-center">
-                                                <a href="{{ route('cuti.export-word', $cuti->id) }}" class="inline-flex items-center justify-center gap-1 border border-dinas-green text-dinas-green hover:bg-dinas-green hover:text-white font-semibold py-1 px-2.5 rounded-none text-xs shadow-xs transition" title="Cetak Formulir Word Resmi (.docx)">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                                    <span>Word (.docx)</span>
-                                                </a>
-                                            </div>
+                                            <span class="max-w-48 text-center text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                                                Surat cuti resmi telah diterbitkan. Salinan dapat diminta di Bagian Kepegawaian.
+                                            </span>
                                         @elseif(!in_array($cuti->status, ['Revisi Atasan', 'REVISI_ATASAN', 'Menunggu Atasan', 'MENUNGGU_ATASAN']))
                                             <span class="text-xs text-slate-400 dark:text-slate-500 font-medium italic">Terkunci</span>
                                         @endif
@@ -196,10 +193,9 @@
                             @endif
 
                             @if(in_array($cuti->status, ['SELESAI_DISETUJUI', 'Disetujui Atasan']))
-                                <a href="{{ route('cuti.export-word', $cuti->id) }}" class="border border-dinas-green text-dinas-green hover:bg-dinas-green/5 text-[10px] font-bold py-1 px-2.5 rounded shadow-xs inline-flex items-center gap-1 transition" title="Cetak Word (.docx)">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                    <span>Word</span>
-                                </a>
+                                <span class="text-right text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
+                                    Surat cuti resmi telah diterbitkan. Salinan dapat diminta di Bagian Kepegawaian.
+                                </span>
                             @endif
                         </div>
                     @endif
